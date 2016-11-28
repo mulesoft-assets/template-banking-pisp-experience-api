@@ -1,0 +1,110 @@
+#%RAML 1.0
+title: financialservices-pisp
+version: v1
+baseUri: https://mocksvc.mulesoft.com/mocks/f27e9267-2b73-4fef-ac7e-4d8256dc0413/api/{version}/payment
+protocols: HTTPS
+
+/initiate:
+  description: |
+    Initiates payment to payee from consumer. Before transfer of funds can be processed, customer authentication and consent must occur. A nonce will be used to prevent replay attacks and inadvertent duplicate transfers.
+    
+    The payee information is provided to the API as a JWT token with the set of payment claims. The JWT token (https://jwt.io/introduction/) is signed with the client secret of the registered app to ensure that it is not tampered with.
+    
+    This endpoint finally redirects to the redirect_url provided as part of the inputs. The redirect_url should match the one registered by the client. It will return transaction_id and status.
+  get:
+    queryParameters:
+      client_id: 
+        required: true
+        description: Client ID of the registered App.
+      redirect_uri:
+        required: true
+        description: Redirect URI defined with your registered App.
+      scope:
+        required: true
+        description: |
+          Scope of the Access Token requested. Space separated list of the following options: openid, accounts, payment.
+        default: 'openid accounts payment'
+        enum: ['openid accounts payment']
+      locale:
+        required: true
+        description: Locale to be used during authorization process.
+        enum: [en,es]
+        default: en
+      state:
+        required: true
+        description: unique ID to maintain state between asynchronous requests.
+      request:
+        required: true
+        description: |
+          The JWT token with all the relevant payment claims signed with the client secret of the app. 
+          After decoding, the request should provide payment info and be similar to:
+          
+          {
+           "iss": "https://demo-merchant.example.com", // issuer's
+           "aud": "https://example-bank.cloudhub.io",  // recipient
+           "client_id": "grOmvYA89jsdhkshdIYhGtpvztofAAjz", 
+           "redirect_uri": "http://localhost/", 
+           "scope": "openid accounts payment", //requested scopes
+           "state": "af0ifjsldkj", //unique state to connect request and response
+           "iat":  "1462517645809"  // issued at
+           "claims": {
+               "payment": {
+                   "type": "sepa_credit_transfer", 
+                   "to": {
+                       "account_number": "31926819", //receiver account id
+                       "bank_id": "gk.40.uk",
+                       "bic": "NWBKGB2L", 
+                       "IBAN": "GB29NWBK60161331926819", 
+                       "name": "demo merchant online store" 
+                   },
+                   "value": {
+                       "currency": "GBP", 
+                       "amount": "200"
+                   },
+                   "additional": {
+                       "subject": "Online Purchase",     //transfer description
+                       "booking_code": "2SFBJ28553",     //transfer booking code
+                       "booking_date": "1462517645809",  //transfer booking date
+                       "value_date": "1462517645809"     //transfer value date
+                   }              
+                }
+            }
+          }
+        
+    responses:
+      302:
+        headers:
+          Location:
+
+#/authorize:
+#  get: 
+#    description: |
+#      Simulates Bank AS authorize flow. Shows user login HTML page to enter username/password.
+#      Before the user credentials check is made, merchant is validated (client_id, client_secret - JWT signature validation)
+#      When credentials check passes, the user is redirected to the PISP (this API for now) to select account to pay with.
+#      Short term access_token is created and is passed in Authorization header to the PISP confirm account flow.
+#
+#    queryParameters: 
+#      client_id:
+#      redirect_uri: 
+#      scope:
+#      
+#    responses: 
+#      302:
+#        description: When authorized
+#        headers: 
+#          Authorization:
+#          Location: 
+#                       
+#
+#
+#/confirm-account:
+#  get:
+#    description: Shows list of accounts to choose from when user is authenticated for payment. Requires JWT access_token as Bearer token. 
+#    headers: 
+#      Authorization: string
+#    responses: 
+#      200:
+#          
+    
+          

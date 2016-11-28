@@ -1,0 +1,110 @@
+#%RAML 1.0
+title: template-banking-openbank-raml
+#baseUri: localhost:8081/api
+mediaType: [application/json]
+baseUri: https://mocksvc.mulesoft.com/mocks/5b0f1bed-d787-4bbe-ab59-34de20bf5b1b/api
+#version: v1
+
+
+traits:
+  transactionSearch: !include traits/transactionSearch.raml
+  accountSearch: !include traits/accountSearch.raml
+  userSearch: !include traits/userSearch.raml
+      
+types: !include dataTypes.raml
+ 
+
+/users:
+  description: Info about all users
+  get:
+    is: [userSearch]
+    responses:
+        200:
+          body:
+            application/json:
+              type: User[]
+              example: !include ./examples/get_user.json
+  
+  /{id}:
+    uriParameters:
+      id:
+        description: Bank user ID
+    get: 
+      responses:
+        200:
+          body:
+            application/json:
+              type: User
+              example: !include ./examples/get_user_id.json
+
+    /transactions:
+      description: Transactions for all accounts
+      get:
+        is: [transactionSearch]
+        responses:
+          200:
+            body:
+              application/json:
+                type: Transaction[]
+                example: !include ./examples/get_transactions.json
+    /accounts:
+      get:
+        responses:
+          200:
+            body:
+              application/json:
+                type: Account[]
+                example: !include ./examples/get_account.json
+
+/accounts:
+  get:
+    is: [accountSearch]      
+    responses:
+      200:
+        body:
+          application/json:
+            type: Account[]
+            example: !include ./examples/get_account.json
+            
+  /{id}:
+    uriParameters:
+      id: 
+        description: Account ID
+
+    get:
+      queryParameters:
+      responses:
+        200:
+          body:
+            application/json:
+              type: Account
+              example: !include ./examples/get_account_id.json
+    
+    /transactions:
+      get:
+        is: [transactionSearch]
+        responses:
+          200:
+            body:
+              application/json:
+                type: Transaction[]
+                example: !include ./examples/get_transactions.json
+
+      post:
+        description: Use to make a new payment.
+        body:
+          application/json:
+            type: PaymentRequest
+        responses: 
+          200:
+            body: 
+              application/json:
+                type: PaymentStatus
+          422:
+            body: 
+              application/json:
+                type: PaymentStatus
+                
+
+            
+    

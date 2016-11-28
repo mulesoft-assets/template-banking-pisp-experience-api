@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" 
+	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" 
+	xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" 
+	xmlns="http://www.mulesoft.org/schema/mule/core" 
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" 
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" 
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" 
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+    <http:request-config name="checking-account-system-api" protocol="HTTPS" host="mocksvc.mulesoft.com" port="443" basePath="/mocks/5b0f1bed-d787-4bbe-ab59-34de20bf5b1b/api" doc:name="HTTP Request Configuration">
+        <http:raml-api-configuration location="account-system-api/api.raml"/>
+    </http:request-config>
+    
+    <flow name="get:/initiate:api-config">
+        <validation:all doc:name="validate query params">
+            <validation:validations>
+                <validation:is-true expression="#[message.inboundProperties.'http.query.params'.redirect_uri.startsWith(&quot;https&quot;)]" message="Redirect URI must be using HTTPS"/>
+                <validation:is-url url="#[message.inboundProperties.'http.query.params'.redirect_uri]" message="Redirect URI must be valid URL"/>
+            </validation:validations>
+        </validation:all>
+        <logger message="#['https://' + server.host + '/api/payment/confirm-account' + message.inboundProperties.'http.query.string' ]" level="INFO" doc:name="Log path"/>
+        <set-property propertyName="Location" value="#['https://' + server.host + '/api/payment/authorize?' + message.inboundProperties.'http.query.string' ]" doc:name="Location"/>
+        <set-property propertyName="http.status" value="307" doc:name="http.status"/>
+        <set-payload value="#[NullPayload.getInstance()]" doc:name="Set Null Payload"/>
+    </flow>
+    
+    <flow name="get:/authorize">
+        <http:listener config-ref="http-continuation" path="/authorize" doc:name="localhost:8082/api/payment/authorize" allowedMethods="GET"/>
+        <set-variable variableName="jwtPaymentToken" value="#[message.inboundProperties.'http.query.params'.request]" doc:name="set var jwtPaymentToken"/>
+        <flow-ref name="validate-jwt-token" doc:name="validate-jwt-token"/>
+        <logger message="JWT token is valid" level="INFO" doc:name="log VALID JWT token"/>
+        <parse-template location="C:\Users\Admin\mule-workspace\template-banking-pisp-experience-api\src\main\resources\html\login.html" doc:name="login form"/>
+    </flow>
+    
+    <sub-flow name="validate-jwt-token">
+        <scripting:transformer returnClass="java.lang.String" doc:name="groovy validation script">
+            <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwt.JwtClaims;
+import org.jose4j.keys.HmacKey;
+import org.jose4j.jwt.consumer.JwtConsumer;
+import org.jose4j.jwt.consumer.JwtConsumerBuilder;
+import java.security.Key;
+
+String clientSecret = '${app.client_secret}';
+String expectedAudience = '${pisp.expected_audience}';
+
+Key key = new HmacKey(clientSecret.getBytes("UTF-8"));
+
+JwtConsumer jwtConsumer = new JwtConsumerBuilder()
+			.setRequireExpirationTime()
+			.setMaxFutureValidityInMinutes(30*24*60)
+			.setExpectedAudience(expectedAudience)
+			.setVerificationKey(key)
+			.build();
+		
+JwtClaims jwtClaims = jwtConsumer.processToClaims(flowVars.jwtPaymentToken);
+return jwtClaims.toJson();]]></scripting:script>
+        </scripting:transformer>
+        <logger message="Claims: #[payload]" level="INFO" doc:name="log claims"/>
+        <set-variable variableName="isTokenValid " value="#[true]" doc:name="set &quot;isTokenValid&quot; variable"/>
+    </sub-flow>
+    
+    <flow name="post:/authorize">
+        <http:listener config-ref="http-continuation" path="/authorize" doc:name="localhost:8082/api/payment/authorize" allowedMethods="POST"/>
+        <logger level="INFO" doc:name="validate credentials"/>
+        <logger level="INFO" doc:name="create token"/>
+        <logger level="INFO" doc:name="create access_token"/>
+        <logger level="INFO" doc:name="redirect to account"/>
+    </flow>
+    
+    <sub-flow name="getClientCredentials">
+        <dw:transform-message doc:name="mocked credentials">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	client_id: p('app.client_id'),
+	client_secret: p('app.client_secret'),
+	redirect_uri: p('app.redirect_uri')
+}]]></dw:set-payload>
+        </dw:transform-message>
+    </sub-flow>
+    
+    <flow name="get:/account">
+        <http:listener config-ref="http-continuation" path="/account" allowedMethods="GET" doc:name="localhost:8082/api/payment/account"/>
+        <logger level="INFO" doc:name="validate access_token"/>
+        <logger message="validate payment_token" level="INFO" doc:name="get accounts from pAPI"/>
+    </flow>
+
+    <flow name="post:/account:api-config">
+        <http:listener config-ref="http-continuation" path="/account" allowedMethods="POST" doc:name="localhost:8082/api/payment/account"/>
+        <logger level="INFO" doc:name="validate access_token"/>
+        <logger level="INFO" doc:name="validate payment token"/>
+        <dw:transform-message doc:name="prepare request for sAPI">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+using (paymentInfo = flowVars.token.payment)
+{
+	amount: {
+		amount: paymentInfo.amount.currency,
+		currency: paymentInfo.amount.currency
+	},
+	description: paymentInfo.subject,
+	label: paymentInfo.receiver.name,
+	receiver_IBAN: paymentInfo.IBAN
+ }]]></dw:set-payload>
+        </dw:transform-message>
+        <http:request config-ref="checking-account-system-api" path="/accounts/{id}/transactions" method="POST" doc:name="Payment"/>
+        <logger level="INFO" doc:name="show payment outcome"/>
+    </flow>
+
+</mule>
