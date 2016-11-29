@@ -1,0 +1,33 @@
+#%RAML 1.0
+title: Banking Accounts Process API
+version: v1.0
+types: !include dataTypes.raml
+
+/accounts/aggregate:
+  displayName: aggregateAccounts
+  get:
+    description: Return aggregated Accounts by user SSN  
+    queryParameters:
+      ssn:
+        type: string | integer
+        example: "124-123-12344"
+    responses:
+      200:
+        body:
+          application/json:
+            type: Account[]
+            example: !include ./examples/get_accounts_aggregate_example.json
+/transactions/aggregate:
+  displayName: aggregateTransactions
+  get:
+    description: Return aggregated Transactions by user SSN  
+    queryParameters:
+      ssn:
+        type: string | integer
+        example: "124-123-12344"
+    responses:
+      200:
+        body:
+          application/json:
+            type: Transaction[]
+            example: !include ./examples/get_transactions_aggregate_example.json

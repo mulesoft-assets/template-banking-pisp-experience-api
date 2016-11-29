@@ -91,13 +91,35 @@ return jwtClaims.toJson();]]></scripting:script>
     </sub-flow>
     
     <flow name="get:/account">
-        <http:listener config-ref="http-continuation" path="/account" allowedMethods="GET" doc:name="localhost:8082/api/payment/account"/>
+        <http:listener config-ref="http-continuation" path="/account" allowedMethods="GET" doc:name="localhost:8082/api/payment/account">
+            <http:response-builder>
+                <http:header headerName="Content-Type" value="text/html"/>
+            </http:response-builder>
+        </http:listener>
         <logger level="INFO" doc:name="validate access_token"/>
         <logger message="validate payment_token" level="INFO" doc:name="get accounts from pAPI"/>
+        <http:request config-ref="banking-accounts-process-api" path="/accounts/aggregate" method="GET" doc:name="get aggregated Accounts">
+            <http:request-builder>
+                <http:query-param paramName="ssn" value="124-123-12344"/>
+
+            </http:request-builder>
+        </http:request>
+        <dw:transform-message doc:name="Prepare accounts table content">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload map {
+	id: $.id,
+	label: $.label,
+	number: $.number
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <parse-template location="html\accounts.html" doc:name="accounts table"/>
     </flow>
 
     <flow name="post:/account:api-config">
         <http:listener config-ref="http-continuation" path="/account" allowedMethods="POST" doc:name="localhost:8082/api/payment/account"/>
+        <logger message="selected account ID: #[payload.account_id]" level="INFO" doc:name="Log selected account ID"/>
         <logger level="INFO" doc:name="validate access_token"/>
         <logger level="INFO" doc:name="validate payment token"/>
         <dw:transform-message doc:name="prepare request for sAPI">
