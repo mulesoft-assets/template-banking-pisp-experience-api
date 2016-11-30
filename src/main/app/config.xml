@@ -15,8 +15,8 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
 
 	<http:listener-config name="api-httpListenerConfig" host="0.0.0.0" port="8081" doc:name="Initiation" />
 	
-	<http:listener-config name="http-continuation" host="0.0.0.0" port="8082" doc:name="Continuation" basePath="/api/payment"/>
-
+	<http:listener-config name="http-continuation" host="0.0.0.0" port="8082" doc:name="Continuation" />
+	
 	<apikit:config name="api-config" raml="api.raml" consoleEnabled="false" doc:name="Router" />
 	
 	<http:request-config name="banking-accounts-process-api" host="${api.banking.accounts.host}" port="${api.banking.accounts.port}" basePath="${api.banking.accounts.basepath}" doc:name="HTTP Request Configuration">
