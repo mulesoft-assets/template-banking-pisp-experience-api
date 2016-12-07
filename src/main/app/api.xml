@@ -264,8 +264,12 @@ payload map {
 			title: "Anypoint Bank user accounts"
 		},
 		body: {
-			form @(action: "http://localhost:8082/api/payment/account", method: "post", enctype: "application/x-www-form-urlencoded"): {
+			form @(action: "http://localhost:8082/api/payment/account?" ++ flowVars.queryString, method: "post", enctype: "application/x-www-form-urlencoded"): {
 				div @(class: "container"): {
+					p: "Do you want to make the following payment?",
+					p: "Amount: " ++ flowVars.paymentTokenClaims.payment.amount.amount ++ " " ++ flowVars.paymentTokenClaims.payment.amount.curr,
+					p: "Receiver: " ++ flowVars.paymentTokenClaims.payment.receiver.name,
+					p: "Description: " ++ flowVars.paymentTokenClaims.payment.details.subject,
 					table: {
 						tr: {
 							th: "",
