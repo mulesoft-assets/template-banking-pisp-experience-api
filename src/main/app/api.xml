@@ -253,17 +253,50 @@ payload map {
 
             </http:request-builder>
         </http:request>
-        <dw:transform-message doc:name="Prepare accounts table content">
+        <dw:transform-message doc:name="Prepare accounts table html">
+            <dw:input-payload doc:sample="sample_data\aggregated_accounts.json"/>
             <dw:set-payload><![CDATA[%dw 1.0
-%output application/java
+%output application/xml
 ---
-payload map {
-	id: $.id,
-	label: $.label,
-	number: $.number
+{
+	html: {
+		head: {
+			title: "Anypoint Bank user accounts"
+		},
+		body: {
+			form @(action: "http://localhost:8082/api/payment/account", method: "post", enctype: "application/x-www-form-urlencoded"): {
+				div @(class: "container"): {
+					table: {
+						tr: {
+							th: "",
+							th: "Account label",
+							th: "Account number"
+						},
+						(payload filter ($.type == "checking") map {
+							tr: {
+								td: {
+									input @(type: "radio", name: "account_id", value: $.id): ""
+								},
+								td: $.label,
+								td: $.number
+							}
+						}),
+						tr: {
+							td: "",
+							td: "",
+							td: {
+								button @(type: "submit"): "Select"
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }]]></dw:set-payload>
         </dw:transform-message>
-        <parse-template location="html\accounts.html" doc:name="accounts table"/>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <set-payload value="#[payload.replaceFirst(&quot;&lt;\\?xml.*\\?&gt;&quot;,&quot;&lt;!DOCTYPE html&gt;&quot;)]" doc:name="Replace XML prolog with HTML DOCTYPE"/>
     </flow>
 
     <flow name="post:/account:api-config">
