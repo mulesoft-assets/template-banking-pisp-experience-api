@@ -1,0 +1,53 @@
+#%RAML 1.0
+title: Sample API
+baseUri: http://localhost:8081/api
+version: v1
+
+types:
+  Money:
+    properties:
+      currency: 
+        type: string
+        pattern: ^[A-Z]{3,3}$
+        example: EUR
+      amount: 
+        type: string
+        pattern: ^[+|-]?\d*\.\d{2}$
+        example: "154.44"
+        
+  PaymentRequest:
+    properties:
+      amount: Money
+      label: string
+      receiver_IBAN: string
+      description: string
+
+  PaymentStatus:
+    properties:
+      transaction_id: string
+      status: 
+        enum: [accepted, rejected]
+      additional_info?: string
+
+/accounts/{id}/transactions:
+  uriParameters:
+    id: 
+      description: Account id
+    
+ 
+  post:
+    description: Use to make a new payment.
+    body: 
+      application/json:
+        type: PaymentRequest
+        example: !include ./examples/post_transaction.json
+    responses: 
+      200:
+        body: 
+          application/json:
+            type: PaymentStatus
+            example: !include ./examples/post_transaction_response.json
+      422:
+        body: 
+          application/json:
+            type: PaymentStatus

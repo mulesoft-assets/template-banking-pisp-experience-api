@@ -17,9 +17,7 @@ http://www.springframework.org/schema/beans http://www.springframework.org/schem
 http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
 http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
 http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
-    <http:request-config name="checking-account-system-api" protocol="HTTPS" host="mocksvc.mulesoft.com" port="443" basePath="/mocks/5b0f1bed-d787-4bbe-ab59-34de20bf5b1b/api" doc:name="HTTP Request Configuration">
-        <http:raml-api-configuration location="account-system-api/api.raml"/>
-    </http:request-config>
+    
     
     <flow name="get:/initiate:api-config">
         <validation:all doc:name="validate query params">
@@ -161,7 +159,7 @@ return jwe.getCompactSerialization();
                 <http:header headerName="Content-Type" value="text/html"/>
             </http:response-builder>
          </http:listener>
-        <logger message="#[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
+        <logger message="get:/account query: #[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
         <set-variable variableName="queryString" value="#[message.inboundProperties.'http.query.string']" doc:name="save queryString"/>
         <validation:all doc:name="Validate request">
             <validation:validations>
@@ -175,9 +173,9 @@ return jwe.getCompactSerialization();
         <enricher source="#[payload]" target="#[flowVars.decryptionKeyString]" doc:name="var decryptionKeyString">
             <parse-template location="shared-key.jwk" doc:name="load AES key"/>
         </enricher>
-        <logger message="#[payload]" level="INFO" doc:name="validate access_token"/>
+
         <enricher source="#[payload]" target="#[flowVars.accessTokenClaims]" doc:name="var accessTokenClaims">
-            <scripting:transformer returnClass="java.lang.String" doc:name="Validate access_token">
+            <scripting:transformer returnClass="java.util.Map" doc:name="Validate access_token">
                 <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwt.JwtClaims;
 import org.jose4j.keys.HmacKey;
 import org.jose4j.keys.resolvers.HttpsJwksVerificationKeyResolver;
@@ -205,7 +203,7 @@ JwtConsumer jwtConsumer = new JwtConsumerBuilder()
 			.build();
 		
 JwtClaims jwtClaims = jwtConsumer.processToClaims(flowVars.access_token);
-return jwtClaims.toJson();]]></scripting:script>
+return jwtClaims.getClaimsMap();]]></scripting:script>
             </scripting:transformer>
         </enricher>
         <enricher source="#[payload.getClaimsMap()]" target="#[flowVars.paymentTokenClaims]" doc:name="var paymentTokenClaims">
@@ -226,30 +224,10 @@ return jwtClaims;]]></scripting:script>
             </scripting:transformer>
         </enricher>
 
-        
-        <http:request config-ref="banking-accounts-process-api" path="/accounts/aggregate" method="GET" doc:name="get aggregated Accounts">
+        <http:request config-ref="accounts-process-api" path="/accounts/aggregate" method="GET" doc:name="get aggregated Accounts">
             <http:request-builder>
                 <http:query-param paramName="ssn" value="#[flowVars.accessTokenClaims.ssn]"/>
 
-
-            </http:request-builder>
-        </http:request>
-        <dw:transform-message doc:name="Prepare accounts table content">
-            <dw:set-payload><![CDATA[%dw 1.0
-%output application/java
----
-payload map {
-	id: $.id,
-	label: $.label,
-	number: $.number
-}]]></dw:set-payload>
-        </dw:transform-message>
-        <parse-template location="html\accounts.html" doc:name="accounts table"/>
-
-        <logger message="validate payment_token" level="INFO" doc:name="get accounts from pAPI"/>
-        <http:request config-ref="banking-accounts-process-api" path="/accounts/aggregate" method="GET" doc:name="get aggregated Accounts">
-            <http:request-builder>
-                <http:query-param paramName="ssn" value="124-123-12344"/>
 
             </http:request-builder>
         </http:request>
@@ -308,7 +286,7 @@ payload map {
         <logger level="INFO" doc:name="validate access_token" message="POST /account:    #[message.inboundProperties.'http.query.string']"/>
         <set-variable variableName="paymentTokenJWS" value="#[message.inboundProperties.'http.query.params'.request]" doc:name="var paymentTokenJWS"/>
         <logger level="INFO" doc:name="validate payment token"/>
-        <set-variable variableName="selectedAcount" value="#[payload.account_id]" doc:name="selectedAccount"/>
+        <set-variable variableName="selectedAccount" value="#[payload.account_id]" doc:name="selectedAccount"/>
         <enricher source="#[payload.getClaimsMap()]" target="#[flowVars.paymentTokenClaims]" doc:name="var paymentTokenClaims">
             <scripting:transformer doc:name="Extract payment info">
                 <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwt.JwtClaims;
@@ -343,9 +321,10 @@ using (paymentInfo = flowVars.paymentTokenClaims.payment)
  }]]></dw:set-payload>
         </dw:transform-message>
         <logger message="#[message.payloadAs(java.lang.String)]" level="INFO" doc:name="Logger"/>
-        <http:request config-ref="checking-account-system-api" path="/accounts/{id}/transactions" method="POST" doc:name="Payment">
+        <http:request config-ref="payments-process-api" path="/accounts/{id}/transactions" method="POST" doc:name="Payment">
             <http:request-builder>
-                <http:uri-param paramName="id" value="flowVars.selectedAccount"/>
+                <http:uri-param paramName="id" value="#[flowVars.selectedAccount]"/>
+
             </http:request-builder>
         </http:request>
         <logger level="INFO" doc:name="show payment outcome"/>
