@@ -72,7 +72,7 @@ return jwtClaims.toJson();]]></scripting:script>
     
     <flow name="post:/authorize">
         <http:listener config-ref="http-continuation" path="api/oauth2/authorize" doc:name="localhost:8082/api/oauth2/authorize" allowedMethods="POST"/>
-        <logger message="#[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Logger"/>
+        <logger message="#[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
         <validation:is-true message="Bank user credentials must be valid" expression="#[payload.uname == '${user.username}' &amp;&amp; payload.pwd == '${user.password}']" doc:name="Validate user credentials"/>
         <enricher source="#[payload]" target="#[flowVars.rsaKeyPairString]" doc:name="var rsaKeyPair">
             <parse-template location="jwk-pair.jwk" doc:name="load RSA keypair"/>
@@ -304,7 +304,7 @@ JwtClaims jwtClaims = jwtConsumer.processToClaims(flowVars.paymentTokenJWS);
 return jwtClaims;]]></scripting:script>
             </scripting:transformer>
         </enricher>
-        <logger message="#[flowVars.paymentTokenClaims]" level="INFO" doc:name="Logger"/>
+        <logger message="Payment token claims : #[flowVars.paymentTokenClaims]" level="INFO" doc:name="Log payment token claims"/>
         <dw:transform-message doc:name="prepare request for sAPI">
             <dw:set-payload><![CDATA[%dw 1.0
 %output application/json
@@ -320,7 +320,7 @@ using (paymentInfo = flowVars.paymentTokenClaims.payment)
 	receiver_IBAN: paymentInfo.receiver.IBAN
  }]]></dw:set-payload>
         </dw:transform-message>
-        <logger message="#[message.payloadAs(java.lang.String)]" level="INFO" doc:name="Logger"/>
+        <logger message="#[message.payloadAs(java.lang.String)]" level="INFO" doc:name="Log request for sAPI"/>
         <http:request config-ref="payments-process-api" path="/accounts/{id}/transactions" method="POST" doc:name="Payment">
             <http:request-builder>
                 <http:uri-param paramName="id" value="#[flowVars.selectedAccount]"/>

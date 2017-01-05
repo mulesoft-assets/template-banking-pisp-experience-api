@@ -36,7 +36,7 @@ To make this Anypoint Template run, there are certain preconditions that must be
 This API is meant to be deployed to CloudHub and managed using the API Platform Manager.
 
 # Run it! <a name="runit"/>
-Simple steps to get AISP Experience API running.
+Simple steps to get PISP Experience API running.
 See below.
 
 ## Running on premise <a name="runonopremise"/>
