@@ -27,139 +27,28 @@ http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mu
             </validation:validations>
         </validation:all>
         <logger message="#[message.inboundProperties.'http.query.string' ]" level="INFO" doc:name="Log path"/>
+        <logger level="INFO" doc:name="Validate client(PISP) &amp; validate JWS"/>
         <set-property propertyName="Location" value="#[  '${as.authorize_url}?' + message.inboundProperties.'http.query.string' ]" doc:name="Location"/>
         <set-property propertyName="http.status" value="302" doc:name="http.status"/>
+        <http:request config-ref="auth-server-config" path="/authorize" method="GET" doc:name="Redirect to AS(authorize) for user's login - PISP client_id">
+            <http:request-builder>
+                <http:query-param paramName="response_type" value="token"/>
+                <http:query-param paramName="client_id" value="${pisp.client_id}"/>
+                <http:query-param paramName="redirect_uri" value="${pisp.redirect_uri}"/>
+            </http:request-builder>
+        </http:request>
+
         <set-payload value="#[NullPayload.getInstance()]" doc:name="Set Null Payload"/>
     </flow>
+
     
-    <flow name="get:/authorize">
-        <http:listener config-ref="http-continuation" path="/api/oauth2/authorize" doc:name="localhost:8082/api/payment/authorize" allowedMethods="GET"/>
-        <set-variable variableName="jwtPaymentToken" value="#[message.inboundProperties.'http.query.params'.request]" doc:name="set var jwtPaymentToken"/>
-        <flow-ref name="validate-jwt-token" doc:name="validate-jwt-token"/>
-        <logger message="JWT token is valid" level="INFO" doc:name="log VALID JWT token"/>
-        <parse-template location="html\login.html" doc:name="login form"/>
-    </flow>
-    <sub-flow name="validate-client-id">
-        <set-variable variableName="validClient" value="#[message.inboundProperties.'http.query.params'.client_id == ${merchant.client_id}]" doc:name="var validClient"/>
-    </sub-flow>
-    
-    <sub-flow name="validate-jwt-token">
-        <scripting:transformer returnClass="java.lang.String" doc:name="groovy validation script">
-            <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwt.JwtClaims;
-import org.jose4j.keys.HmacKey;
-import org.jose4j.jwt.consumer.JwtConsumer;
-import org.jose4j.jwt.consumer.JwtConsumerBuilder;
-import java.security.Key;
-
-String clientSecret = '${merchant.client_secret}';
-String expectedAudience = '${pisp.expected_audience}';
-
-Key key = new HmacKey(clientSecret.getBytes("UTF-8"));
-
-JwtConsumer jwtConsumer = new JwtConsumerBuilder()
-			.setRequireExpirationTime()
-			.setMaxFutureValidityInMinutes(30*24*60)
-			.setExpectedAudience(expectedAudience)
-			.setVerificationKey(key)
-			.build();
-		
-JwtClaims jwtClaims = jwtConsumer.processToClaims(flowVars.jwtPaymentToken);
-return jwtClaims.toJson();]]></scripting:script>
-        </scripting:transformer>
-        <logger message="Claims: #[payload]" level="INFO" doc:name="log claims"/>
-        <set-variable variableName="isTokenValid " value="#[true]" doc:name="set &quot;isTokenValid&quot; variable"/>
-    </sub-flow>
-    
-    <flow name="post:/authorize">
-        <http:listener config-ref="http-continuation" path="api/oauth2/authorize" doc:name="localhost:8082/api/oauth2/authorize" allowedMethods="POST"/>
-        <logger message="#[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
-        <validation:is-true message="Bank user credentials must be valid" expression="#[payload.uname == '${user.username}' &amp;&amp; payload.pwd == '${user.password}']" doc:name="Validate user credentials"/>
-        <enricher source="#[payload]" target="#[flowVars.rsaKeyPairString]" doc:name="var rsaKeyPair">
-            <parse-template location="jwk-pair.jwk" doc:name="load RSA keypair"/>
-        </enricher>
-        <enricher source="#[payload]" target="#[flowVars.encryptionKeyString]" doc:name="var EncryptionKey">
-            <parse-template location="shared-key.jwk" doc:name="load AES key"/>
-        </enricher>
-        <scripting:transformer returnClass="java.lang.String" doc:name="Create access token" >
-            <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwt.JwtClaims;
-import org.jose4j.jwe.JsonWebEncryption;
-import org.jose4j.jws.JsonWebSignature;
-import org.jose4j.jwe.KeyManagementAlgorithmIdentifiers;
-import org.jose4j.jwk.JsonWebKey;
-import org.jose4j.keys.HmacKey;
-import org.jose4j.jwk.RsaJsonWebKey;
-import org.jose4j.jwk.OctetSequenceJsonWebKey;
-import org.jose4j.jwt.consumer.JwtConsumer;
-import org.jose4j.jwt.consumer.JwtConsumerBuilder;
-import org.apache.commons.io.FileUtils;
-import java.security.Key;
-
-JwtClaims claims = new JwtClaims();
-claims.setIssuer("https://anypoint-bank.cloudhub.io");  
-claims.setExpirationTimeMinutesInTheFuture(5); 
-claims.setIssuedAtToNow();  
-claims.setNotBeforeMinutesInThePast(0); 
-claims.setSubject("${user.user_id}"); 
-claims.setClaim("ssn","${user.user_ssn}");
-
-
-RsaJsonWebKey signingKey = (RsaJsonWebKey) JsonWebKey.Factory.newJwk(flowVars.rsaKeyPairString);
-
-JsonWebSignature jws = new JsonWebSignature();
-jws.setAlgorithmHeaderValue('${as.signing.algorithm}');
-jws.setKey(signingKey.getPrivateKey());
-jws.setPayload(claims.toJson());
-
-String jwsString = jws.getCompactSerialization();
-
-encryptionKey = (OctetSequenceJsonWebKey) JsonWebKey.Factory.newJwk(flowVars.encryptionKeyString)
-
-JsonWebEncryption jwe = new JsonWebEncryption();
-jwe.setAlgorithmHeaderValue(KeyManagementAlgorithmIdentifiers.DIRECT);
-jwe.setEncryptionMethodHeaderParameter('${as.encryption.algorithm}');
-jwe.setContentTypeHeaderValue("JWT");
-jwe.setPayload(jwsString);
-jwe.setKey(encryptionKey.getKey());
-		
-return jwe.getCompactSerialization();
-]]></scripting:script>
-        </scripting:transformer>
-
-        <logger level="INFO" doc:name="redirect to account"/>
-        <set-property propertyName="http.status" value="302" doc:name="http.status 302"/>
-        <set-property propertyName="Location" value="#['${pisp.confirmation_url}?' + message.inboundProperties.'http.query.string' + '&amp;access_token=' + payload]" doc:name="Location"/>
-        <set-payload value="#[NullPayload.getInstance()]" doc:name="Null Payload"/>
-
-        <choice-exception-strategy doc:name="Choice Exception Strategy">
-            <catch-exception-strategy when="#[exception.causedBy(org.mule.extension.validation.api.ValidationException)]" doc:name="Redirect to login page">
-                <set-property propertyName="http.status" value="302" doc:name="Status 302"/>
-                <set-property propertyName="Location" value="#['${as.authorize_url}?' + message.inboundProperties.'http.query.string' ]" doc:name="Location"/>
-                <set-payload value="#[NullPayload.getInstance()]" doc:name="Null Payload"/>
-            </catch-exception-strategy>
-        </choice-exception-strategy>
-
-    </flow>
-    
-    <sub-flow name="getClientCredentials">
-        <dw:transform-message doc:name="mocked credentials">
-            <dw:set-payload><![CDATA[%dw 1.0
-%output application/java
----
-{
-	client_id: p('app.client_id'),
-	client_secret: p('app.client_secret'),
-	redirect_uri: p('app.redirect_uri')
-}]]></dw:set-payload>
-        </dw:transform-message>
-    </sub-flow>
-    
-    <flow name="get:/account">
+    <flow name="get:/accounts">
         <http:listener config-ref="http-continuation" path="/api/payment/account" allowedMethods="GET" doc:name="localhost:8082/api/payment/account">
          	<http:response-builder>
                 <http:header headerName="Content-Type" value="text/html"/>
             </http:response-builder>
          </http:listener>
-        <logger message="get:/account query: #[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
+        <logger message="get:/accounts query: #[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
         <set-variable variableName="queryString" value="#[message.inboundProperties.'http.query.string']" doc:name="save queryString"/>
         <validation:all doc:name="Validate request">
             <validation:validations>
@@ -168,44 +57,10 @@ return jwe.getCompactSerialization();
                 <validation:is-not-empty value="#[message.inboundProperties.'http.query.params'.client_id]" message="client_id cannot be empty"/>
             </validation:validations>
         </validation:all>
+
         <set-variable variableName="access_token" value="#[message.inboundProperties.'http.query.params'.access_token]" doc:name="access_token"/>
         <set-variable variableName="paymentRequestJWS" value="#[message.inboundProperties.'http.query.params'.request]" doc:name="paymentRequestJWS"/>
-        <enricher source="#[payload]" target="#[flowVars.decryptionKeyString]" doc:name="var decryptionKeyString">
-            <parse-template location="shared-key.jwk" doc:name="load AES key"/>
-        </enricher>
-
-        <enricher source="#[payload]" target="#[flowVars.accessTokenClaims]" doc:name="var accessTokenClaims">
-            <scripting:transformer returnClass="java.util.Map" doc:name="Validate access_token">
-                <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwt.JwtClaims;
-import org.jose4j.keys.HmacKey;
-import org.jose4j.keys.resolvers.HttpsJwksVerificationKeyResolver;
-import org.jose4j.jwk.HttpsJwks;
-import org.jose4j.jwk.JsonWebKey;
-import org.jose4j.jwk.OctetSequenceJsonWebKey;
-import org.jose4j.jwt.consumer.JwtConsumer;
-import org.jose4j.jwt.consumer.JwtConsumerBuilder;
-import org.jose4j.jwa.AlgorithmConstraints;
-import org.jose4j.jwa.AlgorithmConstraints.ConstraintType;
-import java.security.Key;
-
-decryptionKey = (OctetSequenceJsonWebKey) JsonWebKey.Factory.newJwk(flowVars.decryptionKeyString);
-
-HttpsJwksVerificationKeyResolver verificationKeys = new HttpsJwksVerificationKeyResolver(new HttpsJwks('${as.jwks.url}'));
-    
-JwtConsumer jwtConsumer = new JwtConsumerBuilder()
-			.setRequireExpirationTime()
-			.setJwsAlgorithmConstraints(new AlgorithmConstraints(ConstraintType.WHITELIST, "RS512"))
-			.setJweAlgorithmConstraints(new AlgorithmConstraints(ConstraintType.WHITELIST, "dir"))
-			.setMaxFutureValidityInMinutes(30*24*60)
-			.setExpectedIssuer('${as.issuer}')
-			.setVerificationKeyResolver(verificationKeys)
-			.setDecryptionKey(decryptionKey.getKey())
-			.build();
-		
-JwtClaims jwtClaims = jwtConsumer.processToClaims(flowVars.access_token);
-return jwtClaims.getClaimsMap();]]></scripting:script>
-            </scripting:transformer>
-        </enricher>
+        <flow-ref name="validateAccessToken" doc:name="validateAccessToken"/>
         <enricher source="#[payload.getClaimsMap()]" target="#[flowVars.paymentTokenClaims]" doc:name="var paymentTokenClaims">
             <scripting:transformer doc:name="Extract payment info">
                 <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwt.JwtClaims;
@@ -224,9 +79,11 @@ return jwtClaims;]]></scripting:script>
             </scripting:transformer>
         </enricher>
 
+
         <http:request config-ref="accounts-process-api" path="/accounts/aggregate" method="GET" doc:name="get aggregated Accounts">
             <http:request-builder>
                 <http:query-param paramName="ssn" value="#[flowVars.accessTokenClaims.ssn]"/>
+
 
 
             </http:request-builder>
@@ -242,7 +99,7 @@ return jwtClaims;]]></scripting:script>
 			title: "Anypoint Bank user accounts"
 		},
 		body: {
-			form @(action: "http://localhost:8082/api/payment/account?" ++ flowVars.queryString, method: "post", enctype: "application/x-www-form-urlencoded"): {
+			form @(action: "http://localhost:8082/api/payment/processPayment?" ++ flowVars.queryString, method: "post", enctype: "application/x-www-form-urlencoded"): {
 				div @(class: "container"): {
 					p: "Do you want to make the following payment?",
 					p: "Amount: " ++ flowVars.paymentTokenClaims.payment.amount.amount ++ " " ++ flowVars.paymentTokenClaims.payment.amount.curr,
@@ -280,12 +137,49 @@ return jwtClaims;]]></scripting:script>
         <object-to-string-transformer doc:name="Object to String"/>
         <set-payload value="#[payload.replaceFirst(&quot;&lt;\\?xml.*\\?&gt;&quot;,&quot;&lt;!DOCTYPE html&gt;&quot;)]" doc:name="Replace XML prolog with HTML DOCTYPE"/>
     </flow>
+    <sub-flow name="validateAccessToken">
+        <enricher source="#[payload]" target="#[flowVars.decryptionKeyString]" doc:name="var decryptionKeyString">
+            <parse-template location="shared-key.jwk" doc:name="load AES key"/>
+        </enricher>
+        <enricher source="#[payload]" target="#[flowVars.accessTokenClaims]" doc:name="var accessTokenClaims">
+            <scripting:transformer returnClass="java.util.Map" doc:name="Validate access_token">
+                <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwt.JwtClaims;
+import org.jose4j.keys.HmacKey;
+import org.jose4j.keys.resolvers.HttpsJwksVerificationKeyResolver;
+import org.jose4j.jwk.HttpsJwks;
+import org.jose4j.jwk.JsonWebKey;
+import org.jose4j.jwk.OctetSequenceJsonWebKey;
+import org.jose4j.jwt.consumer.JwtConsumer;
+import org.jose4j.jwt.consumer.JwtConsumerBuilder;
+import org.jose4j.jwa.AlgorithmConstraints;
+import org.jose4j.jwa.AlgorithmConstraints.ConstraintType;
+import java.security.Key;
 
-    <flow name="post:/account:api-config">
+decryptionKey = (OctetSequenceJsonWebKey) JsonWebKey.Factory.newJwk(flowVars.decryptionKeyString);
+
+HttpsJwksVerificationKeyResolver verificationKeys = new HttpsJwksVerificationKeyResolver(new HttpsJwks('${as.jwks.url}'));
+    
+JwtConsumer jwtConsumer = new JwtConsumerBuilder()
+			.setRequireExpirationTime()
+			.setJwsAlgorithmConstraints(new AlgorithmConstraints(ConstraintType.WHITELIST, "RS512"))
+			.setJweAlgorithmConstraints(new AlgorithmConstraints(ConstraintType.WHITELIST, "dir"))
+			.setMaxFutureValidityInMinutes(30*24*60)
+			.setExpectedIssuer('${as.issuer}')
+			.setVerificationKeyResolver(verificationKeys)
+			.setDecryptionKey(decryptionKey.getKey())
+			.build();
+		
+JwtClaims jwtClaims = jwtConsumer.processToClaims(flowVars.access_token);
+return jwtClaims.getClaimsMap();]]></scripting:script>
+            </scripting:transformer>
+        </enricher>
+    </sub-flow>
+
+    <flow name="post:/processPayment:api-config">
         <http:listener config-ref="http-continuation" path="/api/payment/account" allowedMethods="POST" doc:name="localhost:8082/api/payment/account"/>
-        <logger level="INFO" doc:name="validate access_token" message="POST /account:    #[message.inboundProperties.'http.query.string']"/>
+        <logger level="INFO" doc:name="log processPayment info" message="POST /processPayment:    #[message.inboundProperties.'http.query.string']"/>
         <set-variable variableName="paymentTokenJWS" value="#[message.inboundProperties.'http.query.params'.request]" doc:name="var paymentTokenJWS"/>
-        <logger level="INFO" doc:name="validate payment token"/>
+
         <set-variable variableName="selectedAccount" value="#[payload.account_id]" doc:name="selectedAccount"/>
         <enricher source="#[payload.getClaimsMap()]" target="#[flowVars.paymentTokenClaims]" doc:name="var paymentTokenClaims">
             <scripting:transformer doc:name="Extract payment info">
@@ -324,6 +218,8 @@ using (paymentInfo = flowVars.paymentTokenClaims.payment)
         <http:request config-ref="payments-process-api" path="/accounts/{id}/transactions" method="POST" doc:name="Payment">
             <http:request-builder>
                 <http:uri-param paramName="id" value="#[flowVars.selectedAccount]"/>
+
+
 
             </http:request-builder>
         </http:request>

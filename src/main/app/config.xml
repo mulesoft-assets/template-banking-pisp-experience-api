@@ -19,13 +19,16 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
 	
 	<apikit:config name="api-config" raml="api.raml" consoleEnabled="false" doc:name="Router" />
 	
-	<http:request-config name="accounts-process-api" protocol="HTTP" host="${api.banking.accounts.host}" port="${api.banking.accounts.port}" basePath="${api.banking.accounts.basepath}" doc:name="HTTP Request Configuration">
-        <http:raml-api-configuration location="banking-accounts-process-api/template-banking-accounts-process-api.raml"/>
+	<http:request-config name="accounts-process-api"  host="0.0.0.0" port="80"  doc:name="HTTP Request Configuration">
+        <http:raml-api-configuration location="accounts-process-api/template-banking-accounts-process-api.raml"/>
+
 
     </http:request-config>
     
-    <http:request-config name="payments-process-api" protocol="HTTP" host="${api.banking.payments.host}" port="${api.banking.payments.port}" basePath="${api.banking.payments.basePath}" doc:name="HTTP Request Configuration">
+    <http:request-config name="payments-process-api"  host="${api.banking.payments.host}" port="${api.banking.payments.port}" basePath="${api.banking.payments.basePath}" doc:name="HTTP Request Configuration">
         <http:raml-api-configuration location="payments-process-api/payment-process-api.raml"/>
+
     </http:request-config>
+    <http:request-config name="auth-server-config" protocol="HTTPS" host="${as.host}" port="${as.port}" basePath="${as.base.path}" doc:name="HTTP Request Configuration"/>
 
 </mule>

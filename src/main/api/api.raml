@@ -74,37 +74,5 @@ protocols: HTTPS
     responses:
       302:
         headers:
-          Location:
-
-#/authorize:
-#  get: 
-#    description: |
-#      Simulates Bank AS authorize flow. Shows user login HTML page to enter username/password.
-#      Before the user credentials check is made, merchant is validated (client_id, client_secret - JWT signature validation)
-#      When credentials check passes, the user is redirected to the PISP (this API for now) to select account to pay with.
-#      Short term access_token is created and is passed in Authorization header to the PISP confirm account flow.
-#
-#    queryParameters: 
-#      client_id:
-#      redirect_uri: 
-#      scope:
-#      
-#    responses: 
-#      302:
-#        description: When authorized
-#        headers: 
-#          Authorization:
-#          Location: 
-#                       
-#
-#
-#/confirm-account:
-#  get:
-#    description: Shows list of accounts to choose from when user is authenticated for payment. Requires JWT access_token as Bearer token. 
-#    headers: 
-#      Authorization: string
-#    responses: 
-#      200:
-#          
-    
+          Location:   
           
