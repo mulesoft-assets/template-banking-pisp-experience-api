@@ -1,7 +1,7 @@
 #%RAML 1.0
-title: financialservices-pisp
+title: template-banking-pisp
 version: v1
-baseUri: https://mocksvc.mulesoft.com/mocks/f27e9267-2b73-4fef-ac7e-4d8256dc0413/api/{version}/payment
+baseUri: localhost:8081/api/{version}/payment
 protocols: HTTPS
 
 
@@ -82,7 +82,6 @@ protocols: HTTPS
                        "amount": "200"
                    },
                    "additional": {
-                       "transactionId" : "627312b8-1aed-475e-bf21-c796c7c9e235",
                        "subject": "Online Purchase",     //transfer description
                        "booking_code": "2SFBJ28553",     //transfer booking code
                        "booking_date": "1462517645809",  //transfer booking date
@@ -102,8 +101,10 @@ protocols: HTTPS
     description: User is shown the list of his/her accounts and information about payment. User can confirm or deny the payment.
     queryParameters: 
       access_token:
+        required: false
         description: Access token issued by Authorization Server  to make payment
       state: 
+        required: false
         description: Contains the payment ID to retrieve payment token sent during initiation phase
     responses:
       200: 
@@ -119,7 +120,7 @@ protocols: HTTPS
         properties:
           access_token:
             description: Access token that proves user identity.
-          payment_id:
+          paymentId:
             description: Payment ID is used as a key for the payment information. This should be populated by the previous flows.
           account_id:
             description: Account ID which should be used for payment.

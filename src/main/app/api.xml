@@ -24,7 +24,6 @@ http://www.mulesoft.org/schema/mule/objectstore http://www.mulesoft.org/schema/m
 http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
     <flow name="get:/key:api-config">
         <logger level="INFO" doc:name="validate clientid and client_secret"/>
-        <logger level="INFO" doc:name="generate otp"/>
         <set-variable variableName="signingKey" value="#[java.util.UUID.randomUUID().toString()]" doc:name="generate OTP to var oneTimePassword"/>
         <set-variable variableName="paymentId" value="#[java.util.UUID.randomUUID().toString()]" doc:name="var paymentId"/>
         <dw:transform-message doc:name="build data to save">
@@ -37,7 +36,6 @@ http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/jso
 	signingKey: flowVars.signingKey
 }]]></dw:set-payload>
         </dw:transform-message>
-        <logger message="Storing under key: #[payload.client_id + '_' + payload.paymentId] &gt;&gt;  #[payload]" level="INFO" doc:name="Logger"/>
         <objectstore:store config-ref="application_data" doc:name="store merchant one time data" key="#[payload.paymentId]" value-ref="#[payload]" overwrite="true"/>
         <dw:transform-message doc:name="response to merchant">
             <dw:set-payload><![CDATA[%dw 1.0
@@ -59,7 +57,6 @@ http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/jso
             </validation:validations>
         </validation:all>
         <set-variable variableName="params" value="#[message.inboundProperties.'http.query.params']" doc:name="var params"/>
-        <logger level="INFO" doc:name="log params" message="#[flowVars.params]"/>
         <objectstore:contains config-ref="application_data" key="#[flowVars.params.paymentId]" doc:name="client data exists?"/>
         <choice doc:name="client registered and transaction known">
             <when expression="#[payload == true]">
@@ -91,7 +88,6 @@ p('as.url') ++ '/authorize?' ++
                 <set-payload value="#[NullPayload.getInstance()]" doc:name="Set Null Payload"/>
             </when>
             <otherwise>
-                <logger message="Client request unauthenticated" level="INFO" doc:name="Logger"/>
                 <parse-template location="html/error.html" doc:name="error page"/>
             </otherwise>
         </choice>
@@ -127,12 +123,7 @@ return jwtClaims.getClaimsMap();]]></scripting:script>
     </sub-flow>
 
     
-    <flow name="get:/accounts">
-        <http:listener config-ref="http-continuation" path="/api/payment/consent" allowedMethods="GET" doc:name="http://localhost:8082/api/payment/consent">
-         	<http:response-builder>
-                <http:header headerName="Content-Type" value="text/html"/>
-            </http:response-builder>
-         </http:listener>
+    <flow name="get:/consent:api-config">
         <logger message="get:/accounts query: #[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
         <choice doc:name="params present?">
             <when expression="#[!message.inboundProperties.'http.query.params'.isEmpty()]">
@@ -169,7 +160,6 @@ payload filter $.type == "checking"
                 </choice>
             </when>
             <otherwise>
-                <logger level="INFO" doc:name="params are empty"/>
                 <set-payload value="&lt;!DOCTYPE html&gt;
 &lt;html&gt;
   &lt;head&gt;
@@ -224,17 +214,14 @@ return jwtClaims.getClaimsMap();]]></scripting:script>
     </sub-flow>
 
     <flow name="post:/processPayment:api-config">
-        <http:listener config-ref="http-continuation" path="/api/payment/processPayment" allowedMethods="POST" doc:name="localhost:8082/api/payment/processPayment"/>
-        <logger level="INFO" doc:name="log processPayment info" message="POST /processPayment:    #[message.inboundProperties.'http.query.string']"/>
         <set-variable variableName="formData" value="#[payload]" doc:name="save formData"/>
         <set-variable variableName="access_token" value="#[payload.access_token]" doc:name="set var access_token"/>
         <flow-ref name="validateAccessToken" doc:name="validateAccessToken"/>
         <objectstore:contains config-ref="application_data" key="#[flowVars.formData.paymentId]" doc:name="contains payment?"/>
         <choice doc:name="Known payment?">
-            <when expression="#[true]">
+            <when expression="#[payload == true]">
                 <objectstore:retrieve config-ref="application_data" key="#[flowVars.formData.paymentId]" targetProperty="paymentData" doc:name="retrieve to  var paymentData"/>
                 <objectstore:remove config-ref="application_data" key="#[flowVars.formData.paymentId]" ignoreNotExists="true" doc:name="invalidate payment data"/>
-                <logger message="Payment token claims : #[flowVars.paymentData.paymentClaims]" level="INFO" doc:name="Log payment token claims"/>
                 <dw:transform-message doc:name="prepare request for sAPI">
                     <dw:set-payload><![CDATA[%dw 1.0
 %output application/json
@@ -250,13 +237,11 @@ using (paymentInfo = flowVars.paymentData.paymentClaims.payment)
 	receiver_IBAN: paymentInfo.receiver.IBAN
  }]]></dw:set-payload>
                 </dw:transform-message>
-                <logger message="#[message.payloadAs(java.lang.String)]" level="INFO" doc:name="Log request for sAPI"/>
                 <http:request config-ref="payments-process-api" path="/accounts/{id}/transactions" method="POST" doc:name="Payment">
                     <http:request-builder>
                         <http:uri-param paramName="id" value="#[flowVars.formData.account_id]"/>
                     </http:request-builder>
                 </http:request>
-                <logger level="INFO" doc:name="show payment outcome"/>
                 <json:json-to-object-transformer returnClass="java.util.Map" doc:name="JSON to Object"/>
                 <scripting:transformer mimeType="application/java" doc:name="Sign the response">
                     <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwa.AlgorithmConstraints;

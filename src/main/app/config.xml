@@ -20,8 +20,6 @@ http://www.mulesoft.org/schema/mule/oauth2-provider http://www.mulesoft.org/sche
 
 	<http:listener-config name="api-httpListenerConfig" host="0.0.0.0" port="8081" doc:name="Initiation" />
 	
-	<http:listener-config name="http-continuation" host="0.0.0.0" port="8082" doc:name="Continuation" />
-	
 	<apikit:config name="api-config" raml="api.raml" consoleEnabled="false" doc:name="Router" />
 	
 	<http:request-config name="accounts-process-api"  host="${api.banking.accounts.host}" port="${api.banking.accounts.port}"  doc:name="HTTP Request Configuration" basePath="${api.banking.accounts.basePath}">
@@ -39,6 +37,5 @@ http://www.mulesoft.org/schema/mule/oauth2-provider http://www.mulesoft.org/sche
 	<api-platform-gw:api apiName="${api.name}" version="${api.version}" flowRef="api-main" create="true" apikitRef="api-config" doc:name="API Autodiscovery"/>
 	
 	<objectstore:config name="application_data" partition="_defaultUserObjectStore" persistent="true" objectStore-ref="_defaultUserObjectStore" doc:name="ObjectStore: Connector" entryTtl="300000"/>
-    <oauth2-provider:config name="OAuth_provider_module" doc:name="OAuth provider module"/>
 
 </mule>
