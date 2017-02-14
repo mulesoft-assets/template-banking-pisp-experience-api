@@ -62,7 +62,7 @@ http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/jso
         <logger level="INFO" doc:name="log params" message="#[flowVars.params]"/>
         <objectstore:contains config-ref="application_data" key="#[flowVars.params.paymentId]" doc:name="client data exists?"/>
         <choice doc:name="client registered and transaction known">
-            <when expression="#[true]">
+            <when expression="#[payload == true]">
                 <flow-ref name="validatePaymentToken" doc:name="validatePaymentToken"/>
                 <dw:transform-message doc:name="create updated paymentData object">
                     <dw:set-payload><![CDATA[%dw 1.0
@@ -92,6 +92,7 @@ p('as.url') ++ '/authorize?' ++
             </when>
             <otherwise>
                 <logger message="Client request unauthenticated" level="INFO" doc:name="Logger"/>
+                <parse-template location="html/error.html" doc:name="error page"/>
             </otherwise>
         </choice>
 
@@ -133,7 +134,7 @@ return jwtClaims.getClaimsMap();]]></scripting:script>
             </http:response-builder>
          </http:listener>
         <logger message="get:/accounts query: #[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
-        <choice doc:name="Choice">
+        <choice doc:name="params present?">
             <when expression="#[!message.inboundProperties.'http.query.params'.isEmpty()]">
                 <set-variable variableName="params" value="#[message.inboundProperties.'http.query.params']" doc:name="var params"/>
                 <validation:all doc:name="Validate request">
@@ -146,66 +147,24 @@ return jwtClaims.getClaimsMap();]]></scripting:script>
                 <flow-ref name="validateAccessToken" doc:name="validateAccessToken"/>
                 <objectstore:contains config-ref="application_data" key="#[flowVars.params.state]" doc:name="contains payment?"/>
                 <choice doc:name="Known payment?">
-                    <when expression="#[true]">
+                    <when expression="#[payload == true]">
                         <objectstore:retrieve config-ref="application_data" key="#[flowVars.params.state]" targetProperty="paymentData" doc:name="get payment data"/>
                         <http:request config-ref="accounts-process-api" path="/accounts/aggregate" method="GET" doc:name="get aggregated Accounts">
                             <http:request-builder>
                                 <http:query-param paramName="ssn" value="#[flowVars.accessTokenClaims.ssn]"/>
                             </http:request-builder>
                         </http:request>
-                        <dw:transform-message doc:name="Prepare accounts table html">
-                            <dw:input-payload doc:sample="sample_data\aggregated_accounts.json"/>
+                        <dw:transform-message doc:name="Transform Message">
                             <dw:set-payload><![CDATA[%dw 1.0
-%output application/xml
+%output application/java
 ---
-{
-	html: {
-		head: {
-			title: "Anypoint Bank user accounts"
-		},
-		body: {
-			form @(action: "http://localhost:8082/api/payment/processPayment?", method: "post", enctype: "application/x-www-form-urlencoded"): {
-				div @(class: "container"): {
-					p: "Do you want to make the following payment?",
-					p: "Amount: " ++ flowVars.paymentData.paymentClaims.payment.amount.amount ++ " " ++ flowVars.paymentData.paymentClaims.payment.amount.curr,
-					p: "Receiver: " ++ flowVars.paymentData.paymentClaims.payment.receiver.name,
-					p: "Description: " ++ flowVars.paymentData.paymentClaims.payment.details.subject,
-					table: {
-						tr: {
-							th: "",
-							th: "Account label",
-							th: "Account number"
-						},
-						(payload filter ($.type == "checking") map {
-							tr: {
-								td: {
-									input @(type: "radio", name: "account_id", value: $.id): ""
-								},
-								td: $.label,
-								td: $.number
-							}
-						}),
-						tr: {
-							td: "",
-							td: "",
-							td: {
-								button @(type: "submit"): "Select"
-							}
-						}
-					},
-					input @(type: "hidden", name: "access_token", value: flowVars.params.access_token): "",
-					input @(type: "hidden", name: "paymentId", value: flowVars.paymentData.paymentId): ""
-				}
-			}
-		}
-	}
-}]]></dw:set-payload>
+payload filter $.type == "checking"
+]]></dw:set-payload>
                         </dw:transform-message>
-                        <object-to-string-transformer doc:name="Object to String"/>
-                        <set-payload value="#[payload.replaceFirst(&quot;&lt;\\?xml.*\\?&gt;&quot;,&quot;&lt;!DOCTYPE html&gt;&quot;)]" doc:name="Replace XML prolog with HTML DOCTYPE"/>
+                        <parse-template location="html/consent.html" doc:name="merge consent page"/>
                     </when>
                     <otherwise>
-                        <parse-template location="error.html" doc:name="error page"/>
+                        <parse-template location="html/error.html" doc:name="error page"/>
                     </otherwise>
                 </choice>
             </when>
@@ -314,8 +273,8 @@ JwtClaims claims = new JwtClaims();
 claims.setIssuer('${pisp.expected_audience}');  
 claims.setAudience(flowVars.paymentData.paymentClaims.client_id); 
 claims.setStringClaim("status", payload.status);
-claims.setStringClaim("transactionId", payload.transactionId);
-claims.setStringClaim("paymentId", flowVars.paymentData.paymentClaims.paymentId);
+claims.setStringClaim("transactionId", payload.transaction_id);
+claims.setStringClaim("paymentId", flowVars.paymentData.paymentId);
 claims.setIssuedAtToNow();  
 
 JsonWebSignature jws  = new JsonWebSignature();
