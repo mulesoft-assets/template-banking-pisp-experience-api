@@ -1,15 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:context="http://www.springframework.org/schema/context" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit"
+<mule xmlns:oauth2-provider="http://www.mulesoft.org/schema/mule/oauth2-provider" xmlns:objectstore="http://www.mulesoft.org/schema/mule/objectstore"
+	xmlns:api-platform-gw="http://www.mulesoft.org/schema/mule/api-platform-gw"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit"
 	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
 	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/objectstore http://www.mulesoft.org/schema/mule/objectstore/current/mule-objectstore.xsd
+http://www.mulesoft.org/schema/mule/api-platform-gw http://www.mulesoft.org/schema/mule/api-platform-gw/current/mule-api-platform-gw.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
-http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd">
+http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd
+http://www.mulesoft.org/schema/mule/oauth2-provider http://www.mulesoft.org/schema/mule/oauth2-provider/current/mule-oauth2-provider.xsd">
 
     <context:property-placeholder location="common.properties,mule.${mule.env}.properties"/>
 
@@ -19,7 +24,7 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
 	
 	<apikit:config name="api-config" raml="api.raml" consoleEnabled="false" doc:name="Router" />
 	
-	<http:request-config name="accounts-process-api"  host="0.0.0.0" port="80"  doc:name="HTTP Request Configuration">
+	<http:request-config name="accounts-process-api"  host="${api.banking.accounts.host}" port="${api.banking.accounts.port}"  doc:name="HTTP Request Configuration" basePath="${api.banking.accounts.basePath}">
         <http:raml-api-configuration location="accounts-process-api/template-banking-accounts-process-api.raml"/>
 
 
@@ -30,5 +35,10 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
 
     </http:request-config>
     <http:request-config name="auth-server-config" protocol="HTTPS" host="${as.host}" port="${as.port}" basePath="${as.base.path}" doc:name="HTTP Request Configuration"/>
+
+	<api-platform-gw:api apiName="${api.name}" version="${api.version}" flowRef="api-main" create="true" apikitRef="api-config" doc:name="API Autodiscovery"/>
+	
+	<objectstore:config name="application_data" partition="_defaultUserObjectStore" persistent="true" objectStore-ref="_defaultUserObjectStore" doc:name="ObjectStore: Connector" entryTtl="300000"/>
+    <oauth2-provider:config name="OAuth_provider_module" doc:name="OAuth provider module"/>
 
 </mule>
