@@ -126,26 +126,27 @@ return jwtClaims.getClaimsMap();]]></scripting:script>
     <flow name="get:/consent:api-config">
         <logger message="get:/accounts query: #[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
         <choice doc:name="params present?">
-            <when expression="#[!message.inboundProperties.'http.query.params'.isEmpty()]">
-                <set-variable variableName="params" value="#[message.inboundProperties.'http.query.params']" doc:name="var params"/>
+            <when expression="#[message.inboundProperties.Authorization != null]">
                 <validation:all doc:name="Validate request">
                     <validation:validations>
-                        <validation:is-not-empty value="#[message.inboundProperties.'http.query.params'.state]" message="state cannot be empty"/>
-                        <validation:is-not-empty value="#[message.inboundProperties.'http.query.params'.access_token]" message="access_token cannot be empty"/>
+                        <validation:is-not-empty value="#[message.inboundProperties.paymentId]" message="paymentId cannot be empty"/>
+                        <validation:is-not-empty value="#[message.inboundProperties.Authorization]" message="Authorization header cannot be empty"/>
+                        <validation:is-true expression="#[message.inboundProperties.Authorization.startsWith(&quot;Bearer &quot;)]" message="Authorization header must start with 'Bearer '"/>
                     </validation:validations>
                 </validation:all>
-                <set-variable variableName="access_token" value="#[flowVars.params.access_token]" doc:name="set var access_token"/>
+                <set-variable variableName="paymentId" value="#[message.inboundProperties.paymentId]" doc:name="var paymentId"/>
+                <set-variable variableName="access_token" value="#[message.inboundProperties.Authorization.substring(7)]" doc:name="set var access_token"/>
                 <flow-ref name="validateAccessToken" doc:name="validateAccessToken"/>
-                <objectstore:contains config-ref="application_data" key="#[flowVars.params.state]" doc:name="contains payment?"/>
+                <objectstore:contains config-ref="application_data" key="#[flowVars.paymentId]" doc:name="contains payment?"/>
                 <choice doc:name="Known payment?">
                     <when expression="#[payload == true]">
-                        <objectstore:retrieve config-ref="application_data" key="#[flowVars.params.state]" targetProperty="paymentData" doc:name="get payment data"/>
+                        <objectstore:retrieve config-ref="application_data" key="#[flowVars.paymentId]" targetProperty="paymentData" doc:name="get payment data"/>
                         <http:request config-ref="accounts-process-api" path="/accounts/aggregate" method="GET" doc:name="get aggregated Accounts">
                             <http:request-builder>
                                 <http:query-param paramName="ssn" value="#[flowVars.accessTokenClaims.ssn]"/>
                             </http:request-builder>
                         </http:request>
-                        <dw:transform-message doc:name="Transform Message">
+                        <dw:transform-message doc:name="filter response">
                             <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
@@ -165,13 +166,50 @@ payload filter $.type == "checking"
   &lt;head&gt;
     &lt;meta charset=&quot;utf-8&quot;&gt;
     &lt;title&gt;&lt;/title&gt;
+
     &lt;script&gt;
-      window.location = &quot;${pisp.redirect_uri}&quot; + window.location.hash.replace(&quot;#&quot;, &quot;?&quot;)
+
+      window.onload = function(){
+
+        function QueryStringToJSON() {
+            var pairs = location.hash.slice(1).split('&amp;');
+
+            var result = {};
+            pairs.forEach(function(pair) {
+                pair = pair.split('=');
+                result[pair[0]] = decodeURIComponent(pair[1] || '');
+            });
+
+            return JSON.parse(JSON.stringify(result));
+        }
+
+        var hash_string = QueryStringToJSON();
+
+
+         var req = new XMLHttpRequest();
+         req.onreadystatechange = function() {
+           if (req.readyState === 4) {
+              console.log(req.response);
+              window.document.open();
+              window.document.write(req.responseText);
+              window.document.close();
+           }
+         };
+
+         req.open(&quot;GET&quot;, &quot;http://localhost:8081/api/payment/consent&quot;, true);
+         req.setRequestHeader(&quot;Authorization&quot;, &quot;Bearer &quot; + hash_string.access_token);
+         req.setRequestHeader(&quot;paymentId&quot;, hash_string.state);
+         req.responseType = &quot;text&quot;;
+         req.send();
+       };
     &lt;/script&gt;
+
   &lt;/head&gt;
   &lt;body&gt;
+
   &lt;/body&gt;
-&lt;/html&gt;" mimeType="text/html" doc:name="JS redirect"/>
+&lt;/html&gt;
+" mimeType="text/html" doc:name="JS redirect"/>
             </otherwise>
         </choice>
     </flow>
