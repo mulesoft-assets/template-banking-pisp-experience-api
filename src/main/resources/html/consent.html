@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+    <title>Anypoint Bank - Payment</title>
+    <style media="screen">
+        html, body, div, span {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            font-size: 100%;
+            font: inherit;
+            vertical-align: baseline;
+        }
+        header {
+            display: block;
+        }
+        body {
+            line-height: 1;
+        }
+        body {
+            font-family: sans-serif;
+            box-sizing: border-box;
+            color: gray;
+            background: #32444D;
+        }
+        .content-container {
+            padding: 0;
+            margin: 0px;
+        }
+        .container {
+            padding: 0;
+            margin: 0;
+        }
+        header {
+            display: block;
+            height: 50px;
+            background-color: #262728;
+            padding-top: 0.6em;
+            padding-bottom: 1em;
+            padding-left: 2em;
+        }
+        header h1 {
+            font-family: sans-serif;
+            font-size: 1.5em;
+            color: white;
+        }
+        #box {
+            background: white;
+            width: 35em;
+            padding: 1.8em;
+            margin: 200px auto 0px;
+        }
+        #box h1 {
+            font-size: 1.2em;
+            margin: 1em 0;
+        }
+        #box h2 {
+            font-weight: bold;
+            font-size: 1em;
+            margin: 1em 0;
+        }
+        .button input {
+            border-width: 0;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            outline: none;
+            background-color: inherit;
+            color: inherit;
+            font-size: 1em;
+        }
+        .button input {
+            cursor: pointer;
+        }
+        .button {
+            width: 5em;
+            padding: 0.7em 1em;
+            display: inline-block;
+            background: #00A3E0;
+            border: none;
+            margin-top: 30px;
+            color: white;
+            cursor: pointer;
+        }
+        .button:hover, .button:focus {
+            background: #25c4ff;
+        }
+        .details {
+            width: 100%;
+            border-bottom: 1px solid #c5c5c5;
+            border-top: 1px solid #c5c5c5;
+            padding: 10px;
+            margin-bottom: 40px;
+        }
+        td {
+            padding: 8px 0 8px 5px !important;
+        }
+        .detailsLabel {
+            font-weight: bold;
+        }
+        .title {
+            margin-bottom: 30px !important;
+        }
+        .account {
+            display: flex;
+            padding-left: 15px;
+            border-bottom: 1px solid #c5c5c5;
+            padding-bottom: 40px;
+        }
+        a {
+            color: white !important;
+        }
+    </style>
+</head>
+<body>
+<div class="page-container">
+    <div class="container">
+        <header>
+            <h1>Anypoint Bank</h1>
+        </header>
+        <div id="box">
+            <h1 class="title">Do you want to make the following payment?</h1>
+            <form action="#[dw('p("pisp.confirmation_url")')]" method="post"
+                  enctype="application/x-www-form-urlencoded">
+                <div class="content-container">
+                    <table class="details">
+                        <tr>
+                            <td class="detailsLabel">Amount:</td>
+                            <td>#[flowVars.paymentData.paymentClaims.payment.amount.amount + " " + flowVars.paymentData.paymentClaims.payment.amount.curr]</td>
+                        </tr>
+                        <tr>
+                            <td class="detailsLabel">Receiver:</td>
+                            <td>#[flowVars.paymentData.paymentClaims.payment.receiver.name]</td>
+                        </tr>
+                        <tr>
+                            <td class="detailsLabel">Description:</td>
+                            <td>#[flowVars.paymentData.paymentClaims.payment.details.subject]</td>
+                        </tr>
+                    </table>
+                    <h2>Please, select an account:</h2>
+                    <div class="account">
+                        <div class="input">
+                            <input type="radio" checked name="account_id"
+                                   value="#[payload[0].id]" />
+                        </div>
+                        <div>#[payload[0].label]</div>
+                        <div></div>
+                    </div>
+                    <div class="button">
+                        <input id="accept-button" value="Accept" type="submit">
+                    </div>
+                    <div class="button">
+                        <a href="#"><input id="cancel-button" value="   Cancel"></input></a>
+	                   
+                	</div>
+                	<input type="hidden" name="access_token" value="#[flowVars.access_token]"></input>
+	                <input type="hidden" name="paymentId" value="#[flowVars.paymentData.paymentId]"></input>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

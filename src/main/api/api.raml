@@ -1,8 +1,24 @@
 #%RAML 1.0
-title: financialservices-pisp
+title: template-banking-pisp
 version: v1
-baseUri: https://mocksvc.mulesoft.com/mocks/f27e9267-2b73-4fef-ac7e-4d8256dc0413/api/{version}/payment
+baseUri: localhost:8081/api/{version}/payment
 protocols: HTTPS
+
+
+/key:
+  get:
+    queryParameters:
+      client_id: 
+        required: true
+        description: Client ID of the registered App.
+      client_secret: 
+        required: true
+        description: Client ID of the registered App.
+    responses: 
+      200:
+        body:
+          application/json:
+          
 
 /initiate:
   description: |
@@ -19,19 +35,23 @@ protocols: HTTPS
       redirect_uri:
         required: true
         description: Redirect URI defined with your registered App.
-      scope:
+      paymentId:
         required: true
+        description: ID generated in the first step to link payment Token to the one time password.
+        
+      scope:
+        required: false
         description: |
           Scope of the Access Token requested. Space separated list of the following options: openid, accounts, payment.
         default: 'openid accounts payment'
         enum: ['openid accounts payment']
       locale:
-        required: true
+        required: false
         description: Locale to be used during authorization process.
         enum: [en,es]
         default: en
       state:
-        required: true
+        required: false
         description: unique ID to maintain state between asynchronous requests.
       request:
         required: true
@@ -75,4 +95,37 @@ protocols: HTTPS
       302:
         headers:
           Location:   
+ 
+/consent:
+  get:
+    description: User is shown the list of his/her accounts and information about payment. User can confirm or deny the payment.
+    queryParameters: 
+      access_token:
+        required: false
+        description: Access token issued by Authorization Server  to make payment
+      state: 
+        required: false
+        description: Contains the payment ID to retrieve payment token sent during initiation phase
+    responses:
+      200: 
+        body: 
+          text/html:
           
+          
+/processPayment:
+  post:
+    description: User is shown the list of his/her accounts and information about payment. User can confirm or deny the payment.
+    body:
+      application/x-www-form-urlencoded:
+        properties:
+          access_token:
+            description: Access token that proves user identity.
+          paymentId:
+            description: Payment ID is used as a key for the payment information. This should be populated by the previous flows.
+          account_id:
+            description: Account ID which should be used for payment.
+      
+    responses:
+      302: 
+      
+               

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" 
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:objectstore="http://www.mulesoft.org/schema/mule/objectstore" 
+	xmlns:api-platform-gw="http://www.mulesoft.org/schema/mule/api-platform-gw"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation" 
 	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" 
 	xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
 	xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" 
@@ -9,16 +11,44 @@
 	xmlns:http="http://www.mulesoft.org/schema/mule/http" 
 	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/api-platform-gw http://www.mulesoft.org/schema/mule/api-platform-gw/current/mule-api-platform-gw.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
 http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
 http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
-http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
-    
-    
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/objectstore http://www.mulesoft.org/schema/mule/objectstore/current/mule-objectstore.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
+    <flow name="get:/key:api-config">
+        <logger level="INFO" doc:name="validate clientid and client_secret"/>
+        <set-variable variableName="signingKey" value="#[java.util.UUID.randomUUID().toString()]" doc:name="generate OTP to var oneTimePassword"/>
+        <set-variable variableName="paymentId" value="#[java.util.UUID.randomUUID().toString()]" doc:name="var paymentId"/>
+        <dw:transform-message doc:name="build data to save">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	paymentId: flowVars.paymentId,
+	client_id: inboundProperties."http.query.params".client_id,
+	signingKey: flowVars.signingKey
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <objectstore:store config-ref="application_data" doc:name="store merchant one time data" key="#[payload.paymentId]" value-ref="#[payload]" overwrite="true"/>
+        <dw:transform-message doc:name="response to merchant">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	paymentId: payload.paymentId,
+	signingKey: payload.signingKey,
+	expiresInSeconds: 300
+}]]></dw:set-payload>
+        </dw:transform-message>
+</flow>
+
     <flow name="get:/initiate:api-config">
         <validation:all doc:name="validate query params">
             <validation:validations>
@@ -26,116 +56,162 @@ http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mu
                 <validation:is-url url="#[message.inboundProperties.'http.query.params'.redirect_uri]" message="Redirect URI must be valid URL"/>
             </validation:validations>
         </validation:all>
-        <logger message="#[message.inboundProperties.'http.query.string' ]" level="INFO" doc:name="Log path"/>
-        <logger level="INFO" doc:name="Validate client(PISP) &amp; validate JWS"/>
-        <set-property propertyName="Location" value="#[  '${as.authorize_url}?' + message.inboundProperties.'http.query.string' ]" doc:name="Location"/>
-        <set-property propertyName="http.status" value="302" doc:name="http.status"/>
-        <http:request config-ref="auth-server-config" path="/authorize" method="GET" doc:name="Redirect to AS(authorize) for user's login - PISP client_id">
-            <http:request-builder>
-                <http:query-param paramName="response_type" value="token"/>
-                <http:query-param paramName="client_id" value="${pisp.client_id}"/>
-                <http:query-param paramName="redirect_uri" value="${pisp.redirect_uri}"/>
-            </http:request-builder>
-        </http:request>
+        <set-variable variableName="params" value="#[message.inboundProperties.'http.query.params']" doc:name="var params"/>
+        <objectstore:contains config-ref="application_data" key="#[flowVars.params.paymentId]" doc:name="client data exists?"/>
+        <choice doc:name="client registered and transaction known">
+            <when expression="#[payload == true]">
+                <flow-ref name="validatePaymentToken" doc:name="validatePaymentToken"/>
+                <dw:transform-message doc:name="create updated paymentData object">
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+flowVars.paymentData ++ {paymentClaims: flowVars.paymentTokenClaims}]]></dw:set-payload>
+                </dw:transform-message>
+                <objectstore:store config-ref="application_data" key="#[flowVars.params.paymentId]" value-ref="#[payload]" overwrite="true" doc:name="update paymentData with payment token"/>
+                <dw:transform-message doc:name="Redirect to AS /authorize">
+                    <dw:set-property propertyName="Location"><![CDATA[%dw 1.0
+%output application/java
+---
+p('as.url') ++ '/authorize?' ++
 
-        <set-payload value="#[NullPayload.getInstance()]" doc:name="Set Null Payload"/>
+([
+ 'client_id=' ++ p('pisp.client_id'),
+ 'response_type=token', 	
+ 'state=' ++ flowVars.params.paymentId,
+ 'redirect_uri=' ++ p('pisp.redirect_uri')
+] joinBy '&')]]></dw:set-property>
+                    <dw:set-property propertyName="http.status"><![CDATA[%dw 1.0
+%output application/java
+---
+302]]></dw:set-property>
+                </dw:transform-message>
+                <set-payload value="#[NullPayload.getInstance()]" doc:name="Set Null Payload"/>
+            </when>
+            <otherwise>
+                <parse-template location="html/error.html" doc:name="error page"/>
+            </otherwise>
+        </choice>
+
     </flow>
-
-    
-    <flow name="get:/accounts">
-        <http:listener config-ref="http-continuation" path="/api/payment/account" allowedMethods="GET" doc:name="localhost:8082/api/payment/account">
-         	<http:response-builder>
-                <http:header headerName="Content-Type" value="text/html"/>
-            </http:response-builder>
-         </http:listener>
-        <logger message="get:/accounts query: #[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
-        <set-variable variableName="queryString" value="#[message.inboundProperties.'http.query.string']" doc:name="save queryString"/>
-        <validation:all doc:name="Validate request">
-            <validation:validations>
-                <validation:is-not-empty value="#[message.inboundProperties.'http.query.params'.request]" message="request cannot be empty"/>
-                <validation:is-not-empty value="#[message.inboundProperties.'http.query.params'.redirect_uri]" message="redirect_uri cannot be empty"/>
-                <validation:is-not-empty value="#[message.inboundProperties.'http.query.params'.client_id]" message="client_id cannot be empty"/>
-            </validation:validations>
-        </validation:all>
-
-        <set-variable variableName="access_token" value="#[message.inboundProperties.'http.query.params'.access_token]" doc:name="access_token"/>
-        <set-variable variableName="paymentRequestJWS" value="#[message.inboundProperties.'http.query.params'.request]" doc:name="paymentRequestJWS"/>
-        <flow-ref name="validateAccessToken" doc:name="validateAccessToken"/>
-        <enricher source="#[payload.getClaimsMap()]" target="#[flowVars.paymentTokenClaims]" doc:name="var paymentTokenClaims">
-            <scripting:transformer doc:name="Extract payment info">
+    <sub-flow name="validatePaymentToken">
+        <objectstore:retrieve config-ref="application_data" key="#[flowVars.params.paymentId]" targetProperty="paymentData" doc:name="Get paymentData"/>
+        <enricher source="#[payload]" target="#[flowVars.paymentTokenClaims]" doc:name="paymentTokenClaims">
+            <scripting:transformer doc:name="validate Payment token">
                 <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.consumer.JwtConsumer;
 import org.jose4j.jwt.consumer.JwtConsumerBuilder;
+import org.jose4j.keys.HmacKey;
+import org.jose4j.jwa.AlgorithmConstraints;
+import org.jose4j.jwa.AlgorithmConstraints.ConstraintType;
+import java.security.Key;
+
+
+Key key = new HmacKey(flowVars.paymentData.signingKey.getBytes("UTF-8"));
 
 JwtConsumer jwtConsumer = new JwtConsumerBuilder()
 			.setRequireExpirationTime()
-			.setMaxFutureValidityInMinutes(30*24*60)
-			.setExpectedAudience('${pisp.expected_audience}')
-			.setSkipSignatureVerification()
+			.setMaxFutureValidityInMinutes(5)
+			.setJwsAlgorithmConstraints(new AlgorithmConstraints(ConstraintType.WHITELIST, "HS256"))
+			.setExpectedAudience('https://anypointbank-pisp.cloudhub.io')
+			.setVerificationKey(key)
 			.build();
 		
-JwtClaims jwtClaims = jwtConsumer.processToClaims(paymentRequestJWS);
-return jwtClaims;]]></scripting:script>
+JwtClaims jwtClaims = jwtConsumer.processToClaims(flowVars.params.request);
+return jwtClaims.getClaimsMap();]]></scripting:script>
             </scripting:transformer>
         </enricher>
+    </sub-flow>
 
-
-        <http:request config-ref="accounts-process-api" path="/accounts/aggregate" method="GET" doc:name="get aggregated Accounts">
-            <http:request-builder>
-                <http:query-param paramName="ssn" value="#[flowVars.accessTokenClaims.ssn]"/>
-
-
-
-            </http:request-builder>
-        </http:request>
-        <dw:transform-message doc:name="Prepare accounts table html">
-            <dw:input-payload doc:sample="sample_data\aggregated_accounts.json"/>
-            <dw:set-payload><![CDATA[%dw 1.0
-%output application/xml
+    
+    <flow name="get:/consent:api-config">
+        <logger message="get:/accounts query: #[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
+        <choice doc:name="params present?">
+            <when expression="#[message.inboundProperties.Authorization != null]">
+                <validation:all doc:name="Validate request">
+                    <validation:validations>
+                        <validation:is-not-empty value="#[message.inboundProperties.paymentId]" message="paymentId cannot be empty"/>
+                        <validation:is-not-empty value="#[message.inboundProperties.Authorization]" message="Authorization header cannot be empty"/>
+                        <validation:is-true expression="#[message.inboundProperties.Authorization.startsWith(&quot;Bearer &quot;)]" message="Authorization header must start with 'Bearer '"/>
+                    </validation:validations>
+                </validation:all>
+                <set-variable variableName="paymentId" value="#[message.inboundProperties.paymentId]" doc:name="var paymentId"/>
+                <set-variable variableName="access_token" value="#[message.inboundProperties.Authorization.substring(7)]" doc:name="set var access_token"/>
+                <flow-ref name="validateAccessToken" doc:name="validateAccessToken"/>
+                <objectstore:contains config-ref="application_data" key="#[flowVars.paymentId]" doc:name="contains payment?"/>
+                <choice doc:name="Known payment?">
+                    <when expression="#[payload == true]">
+                        <objectstore:retrieve config-ref="application_data" key="#[flowVars.paymentId]" targetProperty="paymentData" doc:name="get payment data"/>
+                        <http:request config-ref="accounts-process-api" path="/accounts/aggregate" method="GET" doc:name="get aggregated Accounts">
+                            <http:request-builder>
+                                <http:query-param paramName="ssn" value="#[flowVars.accessTokenClaims.ssn]"/>
+                            </http:request-builder>
+                        </http:request>
+                        <dw:transform-message doc:name="filter response">
+                            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
 ---
-{
-	html: {
-		head: {
-			title: "Anypoint Bank user accounts"
-		},
-		body: {
-			form @(action: "http://localhost:8082/api/payment/processPayment?" ++ flowVars.queryString, method: "post", enctype: "application/x-www-form-urlencoded"): {
-				div @(class: "container"): {
-					p: "Do you want to make the following payment?",
-					p: "Amount: " ++ flowVars.paymentTokenClaims.payment.amount.amount ++ " " ++ flowVars.paymentTokenClaims.payment.amount.curr,
-					p: "Receiver: " ++ flowVars.paymentTokenClaims.payment.receiver.name,
-					p: "Description: " ++ flowVars.paymentTokenClaims.payment.details.subject,
-					table: {
-						tr: {
-							th: "",
-							th: "Account label",
-							th: "Account number"
-						},
-						(payload filter ($.type == "checking") map {
-							tr: {
-								td: {
-									input @(type: "radio", name: "account_id", value: $.id): ""
-								},
-								td: $.label,
-								td: $.number
-							}
-						}),
-						tr: {
-							td: "",
-							td: "",
-							td: {
-								button @(type: "submit"): "Select"
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}]]></dw:set-payload>
-        </dw:transform-message>
-        <object-to-string-transformer doc:name="Object to String"/>
-        <set-payload value="#[payload.replaceFirst(&quot;&lt;\\?xml.*\\?&gt;&quot;,&quot;&lt;!DOCTYPE html&gt;&quot;)]" doc:name="Replace XML prolog with HTML DOCTYPE"/>
+payload filter $.type == "checking"
+]]></dw:set-payload>
+                        </dw:transform-message>
+                        <parse-template location="html/consent.html" doc:name="merge consent page"/>
+                    </when>
+                    <otherwise>
+                        <parse-template location="html/error.html" doc:name="error page"/>
+                    </otherwise>
+                </choice>
+            </when>
+            <otherwise>
+                <set-payload value="&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;meta charset=&quot;utf-8&quot;&gt;
+    &lt;title&gt;&lt;/title&gt;
+
+    &lt;script&gt;
+
+      window.onload = function(){
+
+        function QueryStringToJSON() {
+            var pairs = location.hash.slice(1).split('&amp;');
+
+            var result = {};
+            pairs.forEach(function(pair) {
+                pair = pair.split('=');
+                result[pair[0]] = decodeURIComponent(pair[1] || '');
+            });
+
+            return JSON.parse(JSON.stringify(result));
+        }
+
+        var hash_string = QueryStringToJSON();
+
+
+         var req = new XMLHttpRequest();
+         req.onreadystatechange = function() {
+           if (req.readyState === 4) {
+              console.log(req.response);
+              window.document.open();
+              window.document.write(req.responseText);
+              window.document.close();
+           }
+         };
+
+         req.open(&quot;GET&quot;, &quot;http://localhost:8081/api/payment/consent&quot;, true);
+         req.setRequestHeader(&quot;Authorization&quot;, &quot;Bearer &quot; + hash_string.access_token);
+         req.setRequestHeader(&quot;paymentId&quot;, hash_string.state);
+         req.responseType = &quot;text&quot;;
+         req.send();
+       };
+    &lt;/script&gt;
+
+  &lt;/head&gt;
+  &lt;body&gt;
+
+  &lt;/body&gt;
+&lt;/html&gt;
+" mimeType="text/html" doc:name="JS redirect"/>
+            </otherwise>
+        </choice>
     </flow>
     <sub-flow name="validateAccessToken">
         <enricher source="#[payload]" target="#[flowVars.decryptionKeyString]" doc:name="var decryptionKeyString">
@@ -161,7 +237,7 @@ HttpsJwksVerificationKeyResolver verificationKeys = new HttpsJwksVerificationKey
     
 JwtConsumer jwtConsumer = new JwtConsumerBuilder()
 			.setRequireExpirationTime()
-			.setJwsAlgorithmConstraints(new AlgorithmConstraints(ConstraintType.WHITELIST, "RS512"))
+			.setJwsAlgorithmConstraints(new AlgorithmConstraints(ConstraintType.WHITELIST, "RS256"))
 			.setJweAlgorithmConstraints(new AlgorithmConstraints(ConstraintType.WHITELIST, "dir"))
 			.setMaxFutureValidityInMinutes(30*24*60)
 			.setExpectedIssuer('${as.issuer}')
@@ -176,34 +252,19 @@ return jwtClaims.getClaimsMap();]]></scripting:script>
     </sub-flow>
 
     <flow name="post:/processPayment:api-config">
-        <http:listener config-ref="http-continuation" path="/api/payment/account" allowedMethods="POST" doc:name="localhost:8082/api/payment/account"/>
-        <logger level="INFO" doc:name="log processPayment info" message="POST /processPayment:    #[message.inboundProperties.'http.query.string']"/>
-        <set-variable variableName="paymentTokenJWS" value="#[message.inboundProperties.'http.query.params'.request]" doc:name="var paymentTokenJWS"/>
-
-        <set-variable variableName="selectedAccount" value="#[payload.account_id]" doc:name="selectedAccount"/>
-        <enricher source="#[payload.getClaimsMap()]" target="#[flowVars.paymentTokenClaims]" doc:name="var paymentTokenClaims">
-            <scripting:transformer doc:name="Extract payment info">
-                <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwt.JwtClaims;
-import org.jose4j.jwt.consumer.JwtConsumer;
-import org.jose4j.jwt.consumer.JwtConsumerBuilder;
-
-JwtConsumer jwtConsumer = new JwtConsumerBuilder()
-			.setRequireExpirationTime()
-			.setMaxFutureValidityInMinutes(30*24*60)
-			.setExpectedAudience('${pisp.expected_audience}')
-			.setSkipSignatureVerification()
-			.build();
-		
-JwtClaims jwtClaims = jwtConsumer.processToClaims(flowVars.paymentTokenJWS);
-return jwtClaims;]]></scripting:script>
-            </scripting:transformer>
-        </enricher>
-        <logger message="Payment token claims : #[flowVars.paymentTokenClaims]" level="INFO" doc:name="Log payment token claims"/>
-        <dw:transform-message doc:name="prepare request for sAPI">
-            <dw:set-payload><![CDATA[%dw 1.0
+        <set-variable variableName="formData" value="#[payload]" doc:name="save formData"/>
+        <set-variable variableName="access_token" value="#[payload.access_token]" doc:name="set var access_token"/>
+        <flow-ref name="validateAccessToken" doc:name="validateAccessToken"/>
+        <objectstore:contains config-ref="application_data" key="#[flowVars.formData.paymentId]" doc:name="contains payment?"/>
+        <choice doc:name="Known payment?">
+            <when expression="#[payload == true]">
+                <objectstore:retrieve config-ref="application_data" key="#[flowVars.formData.paymentId]" targetProperty="paymentData" doc:name="retrieve to  var paymentData"/>
+                <objectstore:remove config-ref="application_data" key="#[flowVars.formData.paymentId]" ignoreNotExists="true" doc:name="invalidate payment data"/>
+                <dw:transform-message doc:name="prepare request for sAPI">
+                    <dw:set-payload><![CDATA[%dw 1.0
 %output application/json
 ---
-using (paymentInfo = flowVars.paymentTokenClaims.payment)
+using (paymentInfo = flowVars.paymentData.paymentClaims.payment)
 {
 	amount: {
 		amount: paymentInfo.amount.amount,
@@ -213,17 +274,56 @@ using (paymentInfo = flowVars.paymentTokenClaims.payment)
 	label: paymentInfo.receiver.name,
 	receiver_IBAN: paymentInfo.receiver.IBAN
  }]]></dw:set-payload>
-        </dw:transform-message>
-        <logger message="#[message.payloadAs(java.lang.String)]" level="INFO" doc:name="Log request for sAPI"/>
-        <http:request config-ref="payments-process-api" path="/accounts/{id}/transactions" method="POST" doc:name="Payment">
-            <http:request-builder>
-                <http:uri-param paramName="id" value="#[flowVars.selectedAccount]"/>
+                </dw:transform-message>
+                <http:request config-ref="payments-process-api" path="/accounts/{id}/transactions" method="POST" doc:name="Payment">
+                    <http:request-builder>
+                        <http:uri-param paramName="id" value="#[flowVars.formData.account_id]"/>
+                    </http:request-builder>
+                </http:request>
+                <json:json-to-object-transformer returnClass="java.util.Map" doc:name="JSON to Object"/>
+                <scripting:transformer mimeType="application/java" doc:name="Sign the response">
+                    <scripting:script engine="Groovy"><![CDATA[import org.jose4j.jwa.AlgorithmConstraints;
+import org.jose4j.jwa.AlgorithmConstraints.ConstraintType;
+import org.jose4j.jws.JsonWebSignature;
+import org.jose4j.jwt.JwtClaims;
+import java.security.Key;
+import org.jose4j.keys.HmacKey;
+
+Key key = new HmacKey(flowVars.paymentData.signingKey.getBytes("UTF-8"));
 
 
+JwtClaims claims = new JwtClaims();
+claims.setIssuer('${pisp.expected_audience}');  
+claims.setAudience(flowVars.paymentData.paymentClaims.client_id); 
+claims.setStringClaim("status", payload.status);
+claims.setStringClaim("transactionId", payload.transaction_id);
+claims.setStringClaim("paymentId", flowVars.paymentData.paymentId);
+claims.setIssuedAtToNow();  
 
-            </http:request-builder>
-        </http:request>
-        <logger level="INFO" doc:name="show payment outcome"/>
+JsonWebSignature jws  = new JsonWebSignature();
+jws.setAlgorithmHeaderValue('HS256');
+jws.setPayload(claims.toJson());
+jws.setKey(key);
+
+return jws.getCompactSerialization();
+]]></scripting:script>
+                </scripting:transformer>
+                <dw:transform-message doc:name="redirect to merchant">
+                    <dw:set-property propertyName="http.status"><![CDATA[%dw 1.0
+%output application/java
+---
+302]]></dw:set-property>
+                    <dw:set-property propertyName="Location"><![CDATA[%dw 1.0
+%output application/java
+---
+flowVars.paymentData.paymentClaims.redirect_uri ++ "?response=" ++ (payload as :string)]]></dw:set-property>
+                </dw:transform-message>
+                <set-payload value="#[NullPayload.getInstance()]" doc:name="empty the payload"/>
+            </when>
+            <otherwise>
+                <parse-template location="error.html" doc:name="error page"/>
+            </otherwise>
+        </choice>
     </flow>
 
 </mule>
