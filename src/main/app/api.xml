@@ -50,12 +50,6 @@ http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/jso
 </flow>
 
     <flow name="get:/initiate:api-config">
-        <validation:all doc:name="validate query params">
-            <validation:validations>
-                <validation:is-true expression="#[message.inboundProperties.'http.query.params'.redirect_uri.startsWith(&quot;https&quot;)]" message="Redirect URI must be using HTTPS"/>
-                <validation:is-url url="#[message.inboundProperties.'http.query.params'.redirect_uri]" message="Redirect URI must be valid URL"/>
-            </validation:validations>
-        </validation:all>
         <set-variable variableName="params" value="#[message.inboundProperties.'http.query.params']" doc:name="var params"/>
         <objectstore:contains config-ref="application_data" key="#[flowVars.params.paymentId]" doc:name="client data exists?"/>
         <choice doc:name="client registered and transaction known">
@@ -89,6 +83,7 @@ p('as.url') ++ '/authorize?' ++
             </when>
             <otherwise>
                 <parse-template location="html/error.html" doc:name="error page"/>
+                <set-property propertyName="http.status" value="408" doc:name="408 Request Time-out"/>
             </otherwise>
         </choice>
 
@@ -161,55 +156,7 @@ payload filter $.type == "checking"
                 </choice>
             </when>
             <otherwise>
-                <set-payload value="&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-  &lt;head&gt;
-    &lt;meta charset=&quot;utf-8&quot;&gt;
-    &lt;title&gt;&lt;/title&gt;
-
-    &lt;script&gt;
-
-      window.onload = function(){
-
-        function QueryStringToJSON() {
-            var pairs = location.hash.slice(1).split('&amp;');
-
-            var result = {};
-            pairs.forEach(function(pair) {
-                pair = pair.split('=');
-                result[pair[0]] = decodeURIComponent(pair[1] || '');
-            });
-
-            return JSON.parse(JSON.stringify(result));
-        }
-
-        var hash_string = QueryStringToJSON();
-
-
-         var req = new XMLHttpRequest();
-         req.onreadystatechange = function() {
-           if (req.readyState === 4) {
-              console.log(req.response);
-              window.document.open();
-              window.document.write(req.responseText);
-              window.document.close();
-           }
-         };
-
-         req.open(&quot;GET&quot;, &quot;http://localhost:8081/api/payment/consent&quot;, true);
-         req.setRequestHeader(&quot;Authorization&quot;, &quot;Bearer &quot; + hash_string.access_token);
-         req.setRequestHeader(&quot;paymentId&quot;, hash_string.state);
-         req.responseType = &quot;text&quot;;
-         req.send();
-       };
-    &lt;/script&gt;
-
-  &lt;/head&gt;
-  &lt;body&gt;
-
-  &lt;/body&gt;
-&lt;/html&gt;
-" mimeType="text/html" doc:name="JS redirect"/>
+                <set-payload value="&lt;!DOCTYPE html&gt; &lt;html&gt;   &lt;head&gt;     &lt;meta charset=&quot;utf-8&quot;&gt;     &lt;title&gt;&lt;/title&gt;      &lt;script&gt;        window.onload = function(){          function QueryStringToJSON() {             var pairs = location.hash.slice(1).split('&amp;');              var result = {};             pairs.forEach(function(pair) {                 pair = pair.split('=');                 result[pair[0]] = decodeURIComponent(pair[1] || '');             });              return JSON.parse(JSON.stringify(result));         }          var hash_string = QueryStringToJSON();            var req = new XMLHttpRequest();          req.onreadystatechange = function() {            if (req.readyState === 4) {               console.log(req.response);               window.document.open();               window.document.write(req.responseText);               window.document.close();            }          };           req.open(&quot;GET&quot;, &quot;${pisp.redirect_uri}&quot;, true);          req.setRequestHeader(&quot;Authorization&quot;, &quot;Bearer &quot; + hash_string.access_token);          req.setRequestHeader(&quot;paymentId&quot;, hash_string.state);          req.responseType = &quot;text&quot;;          req.send();        };     &lt;/script&gt;    &lt;/head&gt;   &lt;body&gt;    &lt;/body&gt; &lt;/html&gt; " mimeType="text/html" doc:name="JS redirect"/>
             </otherwise>
         </choice>
     </flow>
@@ -255,11 +202,11 @@ return jwtClaims.getClaimsMap();]]></scripting:script>
         <set-variable variableName="formData" value="#[payload]" doc:name="save formData"/>
         <set-variable variableName="access_token" value="#[payload.access_token]" doc:name="set var access_token"/>
         <flow-ref name="validateAccessToken" doc:name="validateAccessToken"/>
-        <objectstore:contains config-ref="application_data" key="#[flowVars.formData.paymentId]" doc:name="contains payment?"/>
+        <objectstore:contains config-ref="application_data" key="#[flowVars.formData.payment_id]" doc:name="contains payment?"/>
         <choice doc:name="Known payment?">
             <when expression="#[payload == true]">
-                <objectstore:retrieve config-ref="application_data" key="#[flowVars.formData.paymentId]" targetProperty="paymentData" doc:name="retrieve to  var paymentData"/>
-                <objectstore:remove config-ref="application_data" key="#[flowVars.formData.paymentId]" ignoreNotExists="true" doc:name="invalidate payment data"/>
+                <objectstore:retrieve config-ref="application_data" key="#[flowVars.formData.payment_id]" targetProperty="paymentData" doc:name="retrieve to  var paymentData"/>
+                <objectstore:remove config-ref="application_data" key="#[flowVars.formData.payment_id]" ignoreNotExists="true" doc:name="invalidate payment data"/>
                 <dw:transform-message doc:name="prepare request for sAPI">
                     <dw:set-payload><![CDATA[%dw 1.0
 %output application/json
@@ -322,6 +269,7 @@ flowVars.paymentData.paymentClaims.redirect_uri ++ "?response=" ++ (payload as :
             </when>
             <otherwise>
                 <parse-template location="error.html" doc:name="error page"/>
+                <set-property propertyName="http.status" value="408" doc:name="408 Request Time-out"/>
             </otherwise>
         </choice>
     </flow>

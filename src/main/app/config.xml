@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:oauth2-provider="http://www.mulesoft.org/schema/mule/oauth2-provider" xmlns:objectstore="http://www.mulesoft.org/schema/mule/objectstore"
+<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls" 
 	xmlns:api-platform-gw="http://www.mulesoft.org/schema/mule/api-platform-gw"
-	xmlns:context="http://www.springframework.org/schema/context" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:context="http://www.springframework.org/schema/context" 
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" 
+	xmlns="http://www.mulesoft.org/schema/mule/core"
 	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -14,18 +16,20 @@ http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/htt
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd
-http://www.mulesoft.org/schema/mule/oauth2-provider http://www.mulesoft.org/schema/mule/oauth2-provider/current/mule-oauth2-provider.xsd">
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
 
     <context:property-placeholder location="common.properties,mule.${mule.env}.properties"/>
 
-	<http:listener-config name="api-httpListenerConfig" host="0.0.0.0" port="8081" doc:name="Initiation" />
+	<http:listener-config name="api-httpListenerConfig" host="0.0.0.0" port="${https.port}" doc:name="Initiation" protocol="HTTPS">
+        <tls:context>
+            <tls:key-store type="jks" path="${keystore.location}" keyPassword="${key.password}" password="${keystore.password}"/>
+        </tls:context>
+    </http:listener-config>
 	
 	<apikit:config name="api-config" raml="api.raml" consoleEnabled="false" doc:name="Router" />
 	
 	<http:request-config name="accounts-process-api"  host="${api.banking.accounts.host}" port="${api.banking.accounts.port}"  doc:name="HTTP Request Configuration" basePath="${api.banking.accounts.basePath}">
         <http:raml-api-configuration location="accounts-process-api/template-banking-accounts-process-api.raml"/>
-
-
     </http:request-config>
     
     <http:request-config name="payments-process-api"  host="${api.banking.payments.host}" port="${api.banking.payments.port}" basePath="${api.banking.payments.basePath}" doc:name="HTTP Request Configuration">
