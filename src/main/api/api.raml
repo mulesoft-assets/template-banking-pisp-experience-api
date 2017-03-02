@@ -1,23 +1,30 @@
 #%RAML 1.0
 title: template-banking-pisp
 version: v1
-baseUri: localhost:8081/api/{version}/payment
+baseUri: https://localhost:8082/api/payment
 protocols: HTTPS
+
+securitySchemes: 
+  basic:
+    description: |
+      This API supports Basic Authentication.
+    type: Basic Authentication
 
 
 /key:
   get:
-    queryParameters:
-      client_id: 
-        required: true
-        description: Client ID of the registered App.
-      client_secret: 
-        required: true
-        description: Client ID of the registered App.
+    securedBy: basic
+    description: Use client_id and client_secret generated via Anypoint Platform's developer portal as basic authentication credentials. 
     responses: 
       200:
         body:
           application/json:
+            example: |
+              {
+                "paymentId": "abbd184c-e6e7-479c-8fa3-8fb816142d21",
+                "signingKey" : "f1ceb372-4265-4585-919a-9467a4042c9f",
+                "expiresInSeconds" : "300"
+              }
           
 
 /initiate:
@@ -29,30 +36,16 @@ protocols: HTTPS
     This endpoint finally redirects to the redirect_url provided as part of the inputs. The redirect_url should match the one registered by the client. It will return transaction_id and status.
   get:
     queryParameters:
-      client_id: 
-        required: true
-        description: Client ID of the registered App.
-      redirect_uri:
-        required: true
-        description: Redirect URI defined with your registered App.
+
       paymentId:
         required: true
-        description: ID generated in the first step to link payment Token to the one time password.
-        
+        description: ID generated in the first step to link payment Token to the one time password.  
       scope:
         required: false
         description: |
           Scope of the Access Token requested. Space separated list of the following options: openid, accounts, payment.
         default: 'openid accounts payment'
         enum: ['openid accounts payment']
-      locale:
-        required: false
-        description: Locale to be used during authorization process.
-        enum: [en,es]
-        default: en
-      state:
-        required: false
-        description: unique ID to maintain state between asynchronous requests.
       request:
         required: true
         description: |
@@ -78,7 +71,7 @@ protocols: HTTPS
                        "name": "demo merchant online store" 
                    },
                    "value": {
-                       "currency": "GBP", 
+                       "currency": "EUR", 
                        "amount": "200"
                    },
                    "additional": {
@@ -120,7 +113,7 @@ protocols: HTTPS
         properties:
           access_token:
             description: Access token that proves user identity.
-          paymentId:
+          payment_id:
             description: Payment ID is used as a key for the payment information. This should be populated by the previous flows.
           account_id:
             description: Account ID which should be used for payment.
