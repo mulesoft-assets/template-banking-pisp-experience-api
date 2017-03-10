@@ -1,0 +1,7 @@
+{
+  "type":"EMAIL",
+  "subject": "Testing email",
+  "message": "Hello from testing app",
+  "priority": "MINOR",
+  "recipient": "testing.email@mulesoft.com"
+}

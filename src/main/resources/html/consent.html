@@ -73,6 +73,13 @@
         .button input {
             cursor: pointer;
         }
+
+        .button a {
+          display: block;
+          text-align: center;
+          text-decoration: none;
+        }
+
         .button {
             width: 5em;
             padding: 0.7em 1em;
@@ -151,8 +158,7 @@
                         <input id="accept-button" value="Accept" type="submit">
                     </div>
                     <div class="button">
-                        <a href="#"><input id="cancel-button" value="   Cancel"></input></a>
-	                   
+                        <a href="#[flowVars.paymentData.paymentClaims.redirect_uri]?response=user_cancelled">Cancel</a>
                 	</div>
                 	<input type="hidden" name="access_token" value="#[flowVars.access_token]"></input>
 	                <input type="hidden" name="payment_id" value="#[flowVars.paymentData.paymentId]"></input>
