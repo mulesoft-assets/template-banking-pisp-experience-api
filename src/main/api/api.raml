@@ -104,8 +104,8 @@ securitySchemes:
         body: 
           text/html:
           
-          
-/processPayment:
+
+/confirmPayment:
   post:
     description: User is shown the list of his/her accounts and information about payment. User can confirm or deny the payment.
     body:
@@ -119,6 +119,31 @@ securitySchemes:
             description: Account ID which should be used for payment.
       
     responses:
-      302: 
-      
+      200: 
+        body: 
+          text/html: 
+            
+
+/code: 
+  post: 
+    description: User is asked to enter the code received on his/her mobile phone to complete two factor authentication and confirm the payment.
+    body:
+      application/x-www-form-urlencoded: 
+        properties:
+          access_token:
+            description: Access token that proves user identity
+          payment_id:
+            description: Payment ID is used as a key for the payment information.
+          otp:
+            description: One Time Password entered in the form
+              
+    responses:
+      302:
+  
+  
+  
+  
+  
+  
+  
                

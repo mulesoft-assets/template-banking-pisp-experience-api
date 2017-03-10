@@ -47,7 +47,7 @@
         }
         #box {
             background: white;
-            width: 35em;
+            width: 25em;
             padding: 1.8em;
             margin: 200px auto 0px;
         }
@@ -72,6 +72,11 @@
         }
         .button input {
             cursor: pointer;
+        }
+        .button a {
+          display: block;
+          text-align: center;
+          text-decoration: none;
         }
         .button {
             width: 5em;
@@ -120,8 +125,26 @@
             <h1>Anypoint Bank</h1>
         </header>
         <div id="box">
-            <h1 class="title">Unsuccessful payment</h1>
-        	<p>There was an error during payment process. Please, return back to the merchant site to re-initiate the payment.</p>
+            <h1 class="title">Please enter code received on your phone.</h1>
+            <form action="#[dw('p("pisp.otp_url")')]" method="post"
+                  enctype="application/x-www-form-urlencoded">
+                <div class="content-container">
+                    
+                    <div class="account">
+                        <div class="input">
+                            <input type="number" name="otp" maxlength="4" required autofocus />
+                        </div>
+                    </div>
+                    <div class="button">
+                        <input id="accept-button" value="Pay now" type="submit">
+                    </div>
+                    <div class="button">
+                        <a href="#[flowVars.paymentData.paymentClaims.redirect_uri]?response=user_cancelled">Cancel</a>
+                	</div>
+                	<input type="hidden" name="access_token" value="#[flowVars.access_token]"></input>
+	                <input type="hidden" name="payment_id" value="#[flowVars.paymentData.paymentId]"></input>
+                </div>
+            </form>
         </div>
     </div>
 </div>

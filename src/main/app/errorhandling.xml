@@ -32,8 +32,8 @@ http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/cor
         <apikit:mapping statusCode="400">
             <apikit:exception value="org.mule.module.apikit.exception.BadRequestException" />
             <apikit:exception value="org.mule.extension.validation.api.MultipleValidationException"/>
-            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
-            <set-payload value="{ &quot;message&quot;: &quot;Bad request&quot; }" doc:name="Set Payload" />
+            <apikit:exception value="org.jose4j.jwt.consumer.InvalidJwtException"/>
+            <flow-ref name="error" doc:name="error"/>
         </apikit:mapping>
 <!--         <apikit:mapping statusCode="401"> -->
 <!--             <apikit:exception value="org.jose4j.jwt.consumer.InvalidJwtException"/> -->
@@ -41,5 +41,10 @@ http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/cor
 <!--             <set-payload value="{ &quot;message&quot;: &quot;Unauthorized&quot; }" doc:name="Set Payload"/> -->
 <!--         </apikit:mapping> -->
     </apikit:mapping-exception-strategy>
+    
+    <sub-flow name="error">
+        <parse-template location="html/error.html" doc:name="error page"/>
+        <set-property propertyName="Content-Type" value="text/html" doc:name="text/html"/>
+    </sub-flow>
 
 </mule>

@@ -6,6 +6,7 @@
 	xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit"
 	xmlns:http="http://www.mulesoft.org/schema/mule/http" 
 	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:objectstore="http://www.mulesoft.org/schema/mule/objectstore"
 	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -28,18 +29,39 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
 	
 	<apikit:config name="api-config" raml="api.raml" consoleEnabled="false" doc:name="Router" />
 	
-	<http:request-config name="accounts-process-api"  host="${api.banking.accounts.host}" port="${api.banking.accounts.port}"  doc:name="HTTP Request Configuration" basePath="${api.banking.accounts.basePath}">
+	<http:request-config name="accounts-process-api" doc:name="HTTP Request Configuration"
+			host="#[new URL('${api.banking.accounts.baseUrl}').getHost()]" 
+		    port="#[new URL('${api.banking.accounts.baseUrl}').getPort()]" 
+		    basePath="#[new URL('${api.banking.accounts.baseUrl}').getPath()]">
         <http:raml-api-configuration location="accounts-process-api/template-banking-accounts-process-api.raml"/>
     </http:request-config>
     
-    <http:request-config name="payments-process-api"  host="${api.banking.payments.host}" port="${api.banking.payments.port}" basePath="${api.banking.payments.basePath}" doc:name="HTTP Request Configuration">
+    <http:request-config name="payments-process-api" doc:name="HTTP Request Configuration"
+	    	host="#[new URL('${api.banking.payments.baseUrl}').getHost()]" 
+		    port="#[new URL('${api.banking.payments.baseUrl}').getPort()]" 
+		    basePath="#[new URL('${api.banking.payments.baseUrl}').getPath()]">
         <http:raml-api-configuration location="payments-process-api/payment-process-api.raml"/>
-
     </http:request-config>
-    <http:request-config name="auth-server-config" protocol="HTTPS" host="${as.host}" port="${as.port}" basePath="${as.base.path}" doc:name="HTTP Request Configuration"/>
+    
+    <http:request-config name="auth-server-config" doc:name="HTTP Request Configuration" protocol="HTTPS"
+		     host="#[new URL('${as.baseUrl}').getHost()]" 
+		     port="#[new URL('${as.baseUrl}').getPort()]" 
+		     basePath="#[new URL('${as.baseUrl}').getPath()]">
+        <tls:context>
+            <tls:trust-store insecure="true"/>
+        </tls:context>
+        <http:raml-api-configuration location="authorization-server-api/api.raml"/>
+    </http:request-config>
+    
+    <http:request-config name="notifications-system-api" doc:name="HTTP Request Configuration"
+		    host="#[new URL('${api.banking.notifications.baseUrl}').getHost()]"
+		    port="#[new URL('${api.banking.notifications.baseUrl}').getPort()]"
+		    basePath="#[new URL('${api.banking.notifications.baseUrl}').getPath()]" >
+        <http:raml-api-configuration location="notifications-system-api/api.raml"/>
+    </http:request-config>
 
 	<api-platform-gw:api apiName="${api.name}" version="${api.version}" flowRef="api-main" create="true" apikitRef="api-config" doc:name="API Autodiscovery"/>
 	
 	<objectstore:config name="application_data" partition="_defaultUserObjectStore" persistent="true" objectStore-ref="_defaultUserObjectStore" doc:name="ObjectStore: Connector" entryTtl="300000"/>
-
+    
 </mule>
