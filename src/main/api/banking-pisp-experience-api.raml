@@ -14,7 +14,10 @@ securitySchemes:
 /key:
   get:
     securedBy: basic
-    description: Use client_id and client_secret generated via Anypoint Platform's developer portal as basic authentication credentials. 
+    description: |
+      Use client_id and client_secret generated via Anypoint Platform's developer portal as basic authentication credentials.
+      This endpoint returns short-lived paymentId (key under which info about payment is stored in the PISP) and signingKey
+      (used by merchant to sign the payment JWT token, also used by PISP to sign the response back to the merchant's URL defined in the payment token) 
     responses: 
       200:
         body:
@@ -33,13 +36,13 @@ securitySchemes:
     
     The payee information is provided to the API as a JWT token with the set of payment claims. The JWT token (https://jwt.io/introduction/) is signed with the client secret of the registered app to ensure that it is not tampered with.
     
-    This endpoint finally redirects to the redirect_url provided as part of the inputs. The redirect_url should match the one registered by the client. It will return transaction_id and status.
+    This endpoint redirects to the configured authorization server where user is authenticated.
   get:
     queryParameters:
 
       paymentId:
         required: true
-        description: ID generated in the first step to link payment Token to the one time password.  
+        description: ID generated in the first step (/key endpoint) to link payment token to the one time signing key.  
       scope:
         required: false
         description: |
@@ -49,16 +52,16 @@ securitySchemes:
       request:
         required: true
         description: |
-          The JWT token with all the relevant payment claims signed with the client secret of the app. 
+          The JWT token with all the relevant payment claims signed with the signingKey received using the /key endpoint. 
           After decoding, the request should provide payment info and be similar to:
           
           {
            "iss": "https://demo-merchant.example.com", // issuer's
            "aud": "https://example-bank.cloudhub.io",  // recipient
+           "exp": 1490172650,
            "client_id": "grOmvYA89jsdhkshdIYhGtpvztofAAjz", 
-           "redirect_uri": "http://localhost/", 
+           "redirect_uri": "http://demo-merchant.example.com/afterPayment", 
            "scope": "openid accounts payment", //requested scopes
-           "state": "af0ifjsldkj", //unique state to connect request and response
            "iat":  "1462517645809"  // issued at
            "claims": {
                "payment": {
@@ -91,14 +94,17 @@ securitySchemes:
  
 /consent:
   get:
-    description: User is shown the list of his/her accounts and information about payment. User can confirm or deny the payment.
+    description: |
+      User is shown the list of his/her accounts and information about payment. User can confirm or deny the payment.
     queryParameters: 
       access_token:
         required: false
-        description: Access token issued by Authorization Server  to make payment
+        description: |
+          Access token issued by Authorization Server  to make payment
       state: 
         required: false
-        description: Contains the payment ID to retrieve payment token sent during initiation phase
+        description: |
+          Contains the payment ID to retrieve payment token sent during initiation phase
     responses:
       200: 
         body: 
@@ -107,16 +113,21 @@ securitySchemes:
 
 /confirmPayment:
   post:
-    description: User is shown the list of his/her accounts and information about payment. User can confirm or deny the payment.
+    description: |
+      User is shown the list of his/her accounts and information about payment. User can confirm or deny the payment.
+      This endpoint is supposed to be set as the form action parameter in the consent page.    
     body:
       application/x-www-form-urlencoded:
         properties:
           access_token:
-            description: Access token that proves user identity.
+            description: |
+              Access token that proves user identity.
           payment_id:
-            description: Payment ID is used as a key for the payment information. This should be populated by the previous flows.
+            description: |
+              Payment ID is used as a key for the payment information. This should be populated by the previous flows.
           account_id:
-            description: Account ID which should be used for payment.
+            description: |
+              Account ID which should be used for payment.
       
     responses:
       200: 
@@ -126,24 +137,22 @@ securitySchemes:
 
 /code: 
   post: 
-    description: User is asked to enter the code received on his/her mobile phone to complete two factor authentication and confirm the payment.
+    description: |
+      User is asked to enter the code received on his/her mobile phone to complete two factor authentication and confirm the payment.
+      This endpoint is supposed to be set as the form action parameter in the confirmation page.
+      After confirmation, the user is redirected to the merchant site with signed transaction information in JWT form (query parameter response).
     body:
       application/x-www-form-urlencoded: 
         properties:
           access_token:
-            description: Access token that proves user identity
+            description: |
+              Access token that proves user identity
           payment_id:
-            description: Payment ID is used as a key for the payment information.
+            description: |
+              Payment ID is used as a key for the payment information.
           otp:
-            description: One Time Password entered in the form
+            description: |
+              One Time Password entered in the form
               
     responses:
       302:
-  
-  
-  
-  
-  
-  
-  
-               
