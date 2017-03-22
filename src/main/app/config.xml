@@ -27,7 +27,7 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
         </tls:context>
     </http:listener-config>
 	
-	<apikit:config name="api-config" raml="api.raml" consoleEnabled="false" doc:name="Router" />
+	<apikit:config name="api-config" raml="banking-pisp-experience-api.raml" consoleEnabled="false" doc:name="Router" />
 	
 	<http:request-config name="accounts-process-api" doc:name="HTTP Request Configuration"
 			host="#[new URL('${api.banking.accounts.baseUrl}').getHost()]" 
