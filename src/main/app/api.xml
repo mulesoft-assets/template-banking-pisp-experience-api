@@ -119,7 +119,7 @@ return jwtClaims.getClaimsMap();]]></scripting:script>
 
     
     <flow name="get:/consent:api-config">
-        <logger message="get:/accounts query: #[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
+        <logger message="get:/consent query: #[message.inboundProperties.'http.query.string']" level="INFO" doc:name="Log request"/>
         <choice doc:name="params present?">
             <when expression="#[message.inboundProperties.Authorization != null]">
                 <validation:all doc:name="Validate request">
@@ -224,12 +224,12 @@ flowVars.paymentData.accountId = flowVars.formData.account_id;]]></expression-co
 using(paymentClaims = flowVars.paymentData.paymentClaims){
 	type: "SMS",
 	recipient: flowVars.userInfo.phone,
-	subject: "Payment 9.90 EUR to " ++ paymentClaims.payment.receiver.name ++ " for " ++ paymentClaims.payment.details.subject,
-	message: "Auth code for payment: " ++ flowVars.paymentData.otp,
+	subject: "Payment $(paymentClaims.payment.amount.amount) $(paymentClaims.payment.amount.curr) to '$(paymentClaims.payment.receiver.name)' for '$(paymentClaims.payment.details.subject)'",
+	message: "Auth code: $(flowVars.paymentData.otp)",
 	priority: "MINOR"
 }]]></dw:set-payload>
                 </dw:transform-message>
-                <http:request config-ref="notifications-system-api" path="/notifications" method="POST" doc:name="Send SMS to user"/>
+                <http:request config-ref="notifications-system-api" path="/notifications" method="POST" doc:name="Send code to user via SMS"/>
                 <parse-template location="html/otp.html" doc:name="merge otp page"/>
                 <set-property propertyName="Content-Type" value="text/html" doc:name="HTML"/>
             </when>
@@ -239,7 +239,6 @@ using(paymentClaims = flowVars.paymentData.paymentClaims){
             </otherwise>
         </choice>
     </flow>
-    
     <flow name="post:/code:api-config">
         <set-variable variableName="formData" value="#[payload]" doc:name="save formData"/>
         <set-variable variableName="access_token" value="#[payload.access_token]" doc:name="set var access_token"/>
@@ -310,6 +309,29 @@ return jws.getCompactSerialization();
 flowVars.paymentData.paymentClaims.redirect_uri ++ "?response=" ++ (payload as :string)]]></dw:set-property>
                         </dw:transform-message>
                         <set-payload value="#[NullPayload.getInstance()]" doc:name="empty the payload"/>
+                        <async doc:name="Async">
+                            <enricher source="#[dw('payload')]" target="#[flowVars.userInfo]" doc:name="var userInfo">
+                                <http:request config-ref="auth-server-config" path="/userinfo" method="GET" doc:name="Get user details">
+                                    <http:request-builder>
+                                        <http:header headerName="Authorization" value="Bearer #[flowVars.access_token]"/>
+                                    </http:request-builder>
+                                </http:request>
+                            </enricher>
+                            <dw:transform-message doc:name="Prepare confirmation SMS">
+                                <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+using(payment = flowVars.paymentData.paymentClaims.payment){
+	type      : "SMS",
+	priority  : "MINOR",
+	recipient : flowVars.userInfo.phone,
+	subject   : "PISP transaction.",
+	message   : "$(payment.amount.amount) $(payment.amount.curr) to IBAN $(payment.receiver.IBAN). Anypoint Bank."
+	
+}]]></dw:set-payload>
+                            </dw:transform-message>
+                            <http:request config-ref="notifications-system-api" path="/notifications" method="POST" doc:name="Payment successful SMS notification"/>
+                        </async>
                     </when>
                     <otherwise>
                         <flow-ref name="error" doc:name="error"/>
