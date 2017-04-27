@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head>
+<head> 
     <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
     <title>Anypoint Bank - Payment</title>
     <style media="screen">
@@ -30,34 +30,39 @@
         }
         .container {
             padding: 0;
-            margin: 0;
+            margin: 0 !important;
+            width: 100% !important;
+    		max-width: 100% !important;
         }
         header {
             display: block;
-            height: 50px;
+            height: 100px;
             background-color: #262728;
             padding-top: 0.6em;
             padding-bottom: 1em;
-            padding-left: 2em;
+            padding-left: 1em;
         }
         header h1 {
-            font-family: sans-serif;
+            font-family: "OpenSans",arial,helvetica,sans-serif;
+    		font-weight: lighter;
             font-size: 1.5em;
             color: white;
         }
         #box {
             background: white;
-            width: 35em;
+            width: 37em;
             padding: 1.8em;
             margin: 200px auto 0px;
         }
         #box h1 {
-            font-size: 1.2em;
+            font-size: 1.3em;
             margin: 1em 0;
+
         }
         #box h2 {
-            font-weight: bold;
-            font-size: 1em;
+        	font-family: "DINPro",arial,helvetica,sans-serif;
+    		font-weight: lighter;
+            font-size: 1.2em;
             margin: 1em 0;
         }
         .button input {
@@ -81,12 +86,14 @@
         }
 
         .button {
-            width: 5em;
+            width: 7.5em;
             padding: 0.7em 1em;
             display: inline-block;
             background: #00A3E0;
             border: none;
             margin-top: 30px;
+            margin-left: 5px;
+            margin-right: 5px;
             color: white;
             cursor: pointer;
         }
@@ -104,10 +111,13 @@
             padding: 8px 0 8px 5px !important;
         }
         .detailsLabel {
-            font-weight: bold;
+            font-weight: normal;
         }
         .title {
+        	font-weight: normal;
             margin-bottom: 30px !important;
+
+        }
         }
         .account {
             display: flex;
@@ -117,20 +127,22 @@
         }
         a {
             color: white !important;
-        }
+        }   
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/css/materialize.min.css"> 
+  	<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/js/materialize.min.js"></script>
 </head>
-<body>
+<body> 
 <div class="page-container">
     <div class="container">
         <header>
             <h1>Anypoint Bank</h1>
         </header>
         <div id="box">
-            <h1 class="title">Do you want to make the following payment?</h1>
+        	<h2>Do you want to make the following payment?</h2>
             <form action="#[dw('p("pisp.confirmation_url")')]" method="post"
                   enctype="application/x-www-form-urlencoded">
-                <div class="content-container">
+                  <div class="content-container">
                     <table class="details">
                         <tr>
                             <td class="detailsLabel">Amount:</td>
@@ -148,18 +160,15 @@
                     <h2>Please, select an account:</h2>
                     <div class="account">
                         <div class="input">
-                            <input type="radio" checked name="account_id"
-                                   value="#[payload[0].id]" />
-                        </div>
-                        <div>#[payload[0].label]</div>
-                        <div></div>
-                    </div>
-                    <div class="button">
-                        <input id="accept-button" value="Accept" type="submit">
-                    </div>
-                    <div class="button">
-                        <a href="#[flowVars.paymentData.paymentClaims.redirect_uri]?response=user_cancelled">Cancel</a>
-                	</div>
+      						<input class="with-gap" name="account_id" type="radio" id="account_id"  value="#[payload[0].id]" checked/>
+      						<label for="account_id">#[payload[0].label]</label>
+    					</div>
+    				</div>
+    				<br>
+                    <button class="btn light-blue" id="accept-button" type="submit">AUTHORIZE</button>
+	                <div class="btn light-blue">
+	                    <a href="#[flowVars.paymentData.paymentClaims.redirect_uri]?response=user_cancelled">CANCEL</a>
+	                 </div>
                 	<input type="hidden" name="access_token" value="#[flowVars.access_token]"></input>
 	                <input type="hidden" name="payment_id" value="#[flowVars.paymentData.paymentId]"></input>
                 </div>
