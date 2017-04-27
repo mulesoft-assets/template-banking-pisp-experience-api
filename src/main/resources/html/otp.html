@@ -16,10 +16,10 @@
             display: block;
         }
         body {
-            line-height: 1;
+            line-height: 2;
         }
         body {
-            font-family: sans-serif;
+            /* font-family: sans-serif; */
             box-sizing: border-box;
             color: gray;
             background: #32444D;
@@ -30,35 +30,40 @@
         }
         .container {
             padding: 0;
-            margin: 0;
+            margin: 0 !important;
+            width: 100% !important;
+    		max-width: 100% !important;
         }
         header {
             display: block;
-            height: 50px;
+            height: 100px;
             background-color: #262728;
             padding-top: 0.6em;
             padding-bottom: 1em;
             padding-left: 2em;
         }
         header h1 {
-            font-family: sans-serif;
+            font-family: "DINPro",arial,helvetica,sans-serif;
+    		font-weight: normal;
             font-size: 1.5em;
             color: white;
         }
         #box {
             background: white;
-            width: 25em;
+            width: 26em;
             padding: 1.8em;
             margin: 200px auto 0px;
         }
         #box h1 {
-            font-size: 1.2em;
+            font-size: 1.3em;
             margin: 1em 0;
         }
         #box h2 {
-            font-weight: bold;
-            font-size: 1em;
+        	font-family: "DINPro",arial,helvetica,sans-serif;
+    		font-weight: lighter;
+            font-size: 1.2em;
             margin: 1em 0;
+            
         }
         .button input {
             border-width: 0;
@@ -79,12 +84,14 @@
           text-decoration: none;
         }
         .button {
-            width: 5em;
+            width: 7.5em;
             padding: 0.7em 1em;
             display: inline-block;
             background: #00A3E0;
             border: none;
             margin-top: 30px;
+            margin-left: 5px;
+            margin-left: 5px;
             color: white;
             cursor: pointer;
         }
@@ -105,6 +112,7 @@
             font-weight: bold;
         }
         .title {
+            font-weight: normal;
             margin-bottom: 30px !important;
         }
         .account {
@@ -115,8 +123,13 @@
         }
         a {
             color: white !important;
-        }
+          }  
     </style>
+  <!-- Compiled and minified CSS -->
+  	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/css/materialize.min.css">
+
+  <!-- Compiled and minified JavaScript -->
+  	<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/js/materialize.min.js"></script>
 </head>
 <body>
 <div class="page-container">
@@ -125,22 +138,19 @@
             <h1>Anypoint Bank</h1>
         </header>
         <div id="box">
-            <h1 class="title">Please enter code received on your phone.</h1>
+            <h2>Please enter a verification code sent to #[flowVars.userInfo.phone]</h2>
             <form action="#[dw('p("pisp.otp_url")')]" method="post"
                   enctype="application/x-www-form-urlencoded">
                 <div class="content-container">
-                    
-                    <div class="account">
-                        <div class="input">
-                            <input type="number" name="otp" maxlength="4" required autofocus />
-                        </div>
-                    </div>
-                    <div class="button">
-                        <input id="accept-button" value="Pay now" type="submit">
-                    </div>
-                    <div class="button">
-                        <a href="#[flowVars.paymentData.paymentClaims.redirect_uri]?response=user_cancelled">Cancel</a>
-                	</div>
+                    <div class="row">
+	                   		<div class="input-field col s12">
+				  	          	<input placeholder="Verification code" id="otp" name="otp" type="number" required autofocus>
+						    </div>
+	                </div>
+	                <button class="btn light-blue" id="accept-button" type="submit">VERIFY & CONFIRM</button>
+	                <div class="btn light-blue">
+	                    <a href="#[flowVars.paymentData.paymentClaims.redirect_uri]?response=user_cancelled">  CANCEL  </a>
+	                 </div>
                 	<input type="hidden" name="access_token" value="#[flowVars.access_token]"></input>
 	                <input type="hidden" name="payment_id" value="#[flowVars.paymentData.paymentId]"></input>
                 </div>
