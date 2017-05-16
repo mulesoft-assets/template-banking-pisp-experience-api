@@ -28,9 +28,9 @@
     "number":"3968765442",
     "overdraft": false,
     "owners":[{
-      "user_id":"12346",
-      "ssn": "078-05-1180",
-      "display_name": "test.user.2"
+      "user_id":"12345",
+      "ssn": "078-05-1120",
+      "display_name": "test.user"
     }],
     "type": "savings",
     "balance":{

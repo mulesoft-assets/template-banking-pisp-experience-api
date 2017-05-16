@@ -9,8 +9,8 @@ types: !include dataTypes.raml
     description: Return aggregated Accounts by user SSN  
     queryParameters:
       ssn:
-        type: string | integer
-        example: "124-123-12344"
+        type: SSN
+        example: 078-05-1120
     responses:
       200:
         body:
@@ -23,8 +23,8 @@ types: !include dataTypes.raml
     description: Return aggregated Transactions by user SSN  
     queryParameters:
       ssn:
-        type: string | integer
-        example: "124-123-12344"
+        type: SSN
+        example: 078-05-1120
     responses:
       200:
         body:
