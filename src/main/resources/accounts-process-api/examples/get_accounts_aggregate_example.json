@@ -6,7 +6,7 @@
     "overdraft": false,
     "owners":[{
       "user_id":"12345",
-      "ssn": "078-05-1120",
+      "ssn": "123-45-6789",
       "display_name": "test.user"
     }],
     "type": "checking",
@@ -29,7 +29,7 @@
     "overdraft": false,
     "owners":[{
       "user_id":"12345",
-      "ssn": "078-05-1120",
+      "ssn": "123-45-6789",
       "display_name": "test.user"
     }],
     "type": "savings",
