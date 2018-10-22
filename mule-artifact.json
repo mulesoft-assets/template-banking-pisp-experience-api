@@ -1,0 +1,10 @@
+{"minMuleVersion":"4.1.3",
+    "classLoaderModelLoaderDescriptor": {
+        "id": "mule",
+        "attributes": {
+            "exportedPackages": [
+                "org.mule.templates.oauth2"
+            ]
+        }
+    }
+} 

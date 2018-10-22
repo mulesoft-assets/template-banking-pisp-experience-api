@@ -1,0 +1,503 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:banking-payment-process-api="http://www.mulesoft.org/schema/mule/banking-payment-process-api"
+	xmlns:banking-notifications-system-api="http://www.mulesoft.org/schema/mule/banking-notifications-system-api"
+	xmlns:banking-authorization-server="http://www.mulesoft.org/schema/mule/banking-authorization-server"
+	xmlns:banking-accounts-process-api="http://www.mulesoft.org/schema/mule/banking-accounts-process-api"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/banking-accounts-process-api http://www.mulesoft.org/schema/mule/banking-accounts-process-api/current/mule-banking-accounts-process-api.xsd
+http://www.mulesoft.org/schema/mule/banking-authorization-server http://www.mulesoft.org/schema/mule/banking-authorization-server/current/mule-banking-authorization-server.xsd
+http://www.mulesoft.org/schema/mule/banking-notifications-system-api http://www.mulesoft.org/schema/mule/banking-notifications-system-api/current/mule-banking-notifications-system-api.xsd
+http://www.mulesoft.org/schema/mule/banking-payment-process-api http://www.mulesoft.org/schema/mule/banking-payment-process-api/current/mule-banking-payment-process-api.xsd">
+
+	<flow name="keyFlow" doc:id="e70ac96a-c173-41d1-bd47-597468924f1f">
+		<set-variable value="#[uuid()]" doc:name="Set paymentId"
+			doc:id="e4735fe4-bc2e-4594-b30c-75b7c760199e" variableName="paymentId" />
+		<set-variable value="#[uuid()]" doc:name="Set signingKey"
+			doc:id="5769ccad-07dd-4f40-a2f9-9f1b9878c6e6" variableName="signingKey" />
+		<ee:transform doc:name="Build data to save"
+			doc:id="4a787ff4-10b1-4fec-baeb-35ca3b46990a">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	paymentId: vars.paymentId,
+	client_id: if (not isEmpty(attributes.queryParams.client_id)) attributes.queryParams.client_id else null,
+	signingKey: vars.signingKey
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+			</ee:variables>
+		</ee:transform>
+		<os:store doc:name="Store merchant one time data" doc:id="50249de4-2187-4ba0-9709-7eb21b41094b"
+			objectStore="application_data" key="#[payload.paymentId]">
+		</os:store>
+		<ee:transform doc:name="Response to merchant"
+			doc:id="dbe3039a-f217-4e4e-bc55-947c68ddd514">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	paymentId: payload.paymentId,
+	signingKey: payload.signingKey,
+	expiresInSeconds: 300
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="initiateFlow" doc:id="7feea2ce-e0cb-4663-af2a-71e9b79c52db">
+		<ee:transform doc:name="Set params variable"
+			doc:id="77e460a0-1bbe-48a6-8dc9-cbcbd46a055c">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="params"><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<os:contains doc:id="5f6d716d-dd9e-45d1-aa69-5650c9bec4ac"
+			key="#[vars.params.paymentId]" objectStore="application_data"
+			doc:name="Contains paymentId?" />
+		<choice doc:name="Client registered and transaction known"
+			doc:id="dcf3c4ab-f989-4567-be36-6c164d0929de">
+			<when expression="#[payload == true]">
+				<flow-ref doc:name="Validate payment token" doc:id="61d9ce25-7b89-47e4-a866-f81c2d53c1f1"
+					name="validatePaymentToken" />
+				<ee:transform doc:name="Add paymentTokenClaims to paymentData"
+					doc:id="8465d201-0bd6-45bf-b318-b0a7b24f205f">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+vars.paymentData ++ {
+	paymentClaims: vars.paymentTokenClaims
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<os:store doc:name="Update paymentData with payment token"
+					doc:id="62391138-0b4f-4a7c-be5e-f219295ec263" key="#[vars.params.paymentId]"
+					objectStore="application_data" />
+				<ee:transform doc:name="Set redirect uri"
+					doc:id="4e004e9e-b18b-48dd-aa5c-cf107ff51d55">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[302]]></ee:set-variable>
+						<ee:set-variable variableName="outboundHeaders"><![CDATA[%dw 2.0
+output application/java
+---
+{
+	location  : 
+	p('api.banking.auth.protocol') ++ '://' ++ 
+	p('api.banking.auth.host') ++
+	p('api.banking.auth.basePath') 
+	++ '/authorize?' ++
+	 'client_id=' ++ p('pisp.client_id') ++ '&' ++
+	 'response_type=token' ++ '&' ++ 
+	 'state=' ++ vars.params.paymentId ++ '&' ++
+	 'redirect_uri=' ++ p('pisp.redirect_uri') 
+}]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<parse-template doc:name="Error page"
+					doc:id="eab1760e-4627-49ce-a9d9-e6fbde80738f" location="html/error.html" />
+				<ee:transform doc:name="408"
+					doc:id="7ec9106e-38c2-4044-8f14-9e167bd21c54">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[408]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="validatePaymentToken" doc:id="257cfcac-c264-4f49-81fc-e4655186fffc">
+		<os:retrieve doc:name="Get paymentData"
+			doc:id="9e70a685-fe89-4117-8e52-f1fa1d6cbb9f" key="#[vars.params.paymentId]"
+			objectStore="application_data" target="paymentData" />
+		<java:invoke-static doc:name="Get JWT Claims"
+			doc:id="51907c01-c2b6-46da-afd8-12b83d2e3eec" class="org.mule.templates.oauth2.PaymentTokenUtils"
+			method="getJwtClaims(String,String,String)" target="paymentTokenClaims">
+			<java:args><![CDATA[#[{arg0:vars.paymentData.signingKey, arg1:vars.params.request,arg2:p('jwt.audience')}]]]></java:args>
+		</java:invoke-static>
+	</sub-flow>
+	<sub-flow name="validateAccessToken" doc:id="329b2bd5-34bc-4247-afbe-e8bc074cc38c">
+		<file:read doc:name="Load AES key" doc:id="31e6d739-fec6-41ec-bb81-04f10ae50567"
+			config-ref="File_Config" path="${jwt.encryption.key.path}" target="decryptionKeyString" />
+
+		<file:read doc:name="Load RSA key" doc:id="ffe666d3-2168-4bc7-b7fd-daaccb4842e3"
+			config-ref="File_Config" path="${jwt.signing.key.path}" target="verificationKeyString" />
+		<java:invoke-static doc:name="Get JWT Claims"
+			doc:id="6ef0fbf7-2f7e-47a4-bd1a-3dcf367508ce" class="org.mule.templates.oauth2.AccessTokenUtils"
+			method="getJwtClaims(String,String,String,String)" target="accessTokenClaims">
+			<java:args><![CDATA[#[{arg0:vars.accessToken, arg1:vars.decryptionKeyString, arg2:vars.verificationKeyString,
+                arg3:p('jwt.issuer')}]]]></java:args>
+		</java:invoke-static>
+	</sub-flow>
+	<flow name="consentFlow" doc:id="d8243a24-b239-44e2-a30e-a470e1e40d7d">
+		<logger level="INFO" doc:name="Logger"
+			doc:id="d35592eb-6ee7-469e-87cf-39695c922ac6"
+			message="get:/consent query:  #[output application/json --- attributes.headers] " />
+		<choice doc:name="Params present?" doc:id="ae9a95b8-dfa2-4651-9530-6c3caacd07d0">
+			<when expression="#[attributes.Headers.authorization != null]">
+				<validation:all doc:name="Validate request"
+					doc:id="e3d49489-52d5-4583-8c3f-b428e1298189">
+					<validation:is-true doc:name="Check paymentId not null"
+						doc:id="e9eec6de-e6b3-4f5b-b62d-5c86979fcab9" config-ref="Validation_Config"
+						expression='#[(not isEmpty(attributes.headers.paymentId)) and (attributes.headers.paymentId != "undefined")]'
+						message="paymentId cannot be empty" />
+					<validation:is-true doc:name="Check authorization not null"
+						doc:id="a609104a-a37f-41ae-afc0-edad39c92d96" config-ref="Validation_Config"
+						expression='#[not isEmpty(attributes.headers.authorization)]'
+						message="Authorization header cannot be empty" />
+					<validation:is-true doc:name="Check authorization start with Bearer"
+						doc:id="1fad6f54-97aa-4bc1-b43a-593239070606" config-ref="Validation_Config"
+						expression='#[startsWith(attributes.headers.authorization, "Bearer ") and (attributes.headers.authorization != "Bearer undefined")]'
+						message="Authorization header is invalid" />
+				</validation:all>
+				<ee:transform doc:name="Set vars paymentId and access_token"
+					doc:id="aabc91c0-8457-406b-a0cc-b03fbfd29fca">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="paymentId"><![CDATA[%dw 2.0
+output application/java
+---
+attributes.headers.paymentId
+]]></ee:set-variable>
+						<ee:set-variable variableName="accessToken"><![CDATA[%dw 2.0
+output application/java
+---
+attributes.headers.authorization[7 to sizeOf(attributes.headers.authorization) -1]]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<flow-ref doc:name="Validate accessToken" doc:id="a66e877b-e145-4e01-a3de-bcdabc2f34f9"
+					name="validateAccessToken" />
+
+				<os:contains doc:id="61df304c-8653-4e99-bd0d-c4e368139337"
+					objectStore="application_data" key="#[vars.paymentId]" doc:name="Contains paymentId?" />
+				<choice doc:name="Known payment?" doc:id="654001b7-87b7-4ba2-8058-ba5b4b79b103">
+					<when expression="#[payload == true]">
+						<os:retrieve doc:name="Get payment data"
+							doc:id="a21d32ab-75d0-4be6-9355-4d02f60cc73a" key="#[vars.paymentId]"
+							objectStore="application_data" target="paymentData" />
+						<banking-accounts-process-api:aggregate-user-accounts
+							doc:name="Get aggregated accounts" doc:id="e9afaac0-805b-4a9d-9a51-289da797bcd0"
+							config-ref="Banking_Accounts_Process_API_Config" ssn="#[vars.accessTokenClaims.ssn]" />
+
+						<ee:transform doc:name="Filter response"
+							doc:id="5111667d-6fb2-4407-82ff-3b3442c958ab">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload filter $."type" == "checking"]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+
+						<parse-template doc:name="Merge consent page"
+							doc:id="69064f83-13d2-4eb3-84ba-b711aa8fe412" location="html/consent.html" />
+					</when>
+					<otherwise>
+
+						<parse-template doc:name="Error page"
+							doc:id="b46d254e-91e2-4627-9b76-9a7f117dbeb9" location="html/error.html" />
+					</otherwise>
+				</choice>
+
+			</when>
+			<otherwise>
+				<set-payload
+					value="&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+	&lt;head&gt;
+		&lt;meta charset=&quot;utf-8&quot;&gt;
+			&lt;title&gt;&lt;/title&gt;
+			&lt;script&gt; window.onload = function(){ 
+				function QueryStringToJSON() {
+
+					var pairs = location.hash.slice(1).split('&amp;'); 
+					var result = {};
+				pairs.forEach(
+					function(pair) { 
+					pair = pair.split('=');
+					result[pair[0]] = decodeURIComponent(pair[1] || ''); }
+				); return
+				JSON.parse(JSON.stringify(result));
+				} 
+				
+				
+				var hash_string = QueryStringToJSON(); 
+				
+				var req = new XMLHttpRequest();
+				req.onreadystatechange = function() { 
+					if (req.readyState === 4) {
+						console.log(req.response); 
+						window.document.open();
+						window.document.write(req.responseText); 
+						window.document.close();
+					}
+				}; 
+				
+				req.open(&quot;GET&quot;, &quot;${pisp.redirect_uri}&quot;, true);
+				
+				req.setRequestHeader(&quot;Authorization&quot;, &quot;Bearer &quot; + hash_string.access_token); 
+				req.setRequestHeader(&quot;paymentId&quot;,hash_string.state); 
+				req.responseType = &quot;text&quot;; req.send(); 
+				};     &lt;/script&gt;
+	&lt;/head&gt;
+	&lt;body&gt;
+	&lt;/body&gt;
+&lt;/html&gt; "
+					doc:name="Set Payload" doc:id="3cfeb34a-daae-4df9-8e92-f3071beb62f0"
+					mimeType="text/html" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="confirmPaymentFlow" doc:id="1e932f76-de97-45b0-b705-563958f583b6">
+		<ee:transform doc:name="Set formData and accessToken vars"
+			doc:id="a4407aa7-e6c7-4730-8338-22a1f5bfb9c4">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="formData"><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+				<ee:set-variable variableName="accessToken"><![CDATA[%dw 2.0
+output application/java
+---
+payload.access_token]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="validateAccessToken" doc:id="6d04f633-ae7f-45bc-8eb0-cf996731c975"
+			name="validateAccessToken" />
+		<os:contains doc:name="Contains payment?"
+			doc:id="626092c9-99a8-42a6-a640-0ec6bde5216d" key="#[vars.formData.payment_id]"
+			objectStore="application_data" />
+		<choice doc:name="Known payment?" doc:id="8bc73d19-4009-4a65-b7c4-976f9b277381">
+			<when expression="#[payload == true]">
+				<os:retrieve doc:name="Retrieve to paymentData"
+					doc:id="2defccab-f02d-404d-8bca-e517c6557036" key="#[vars.formData.payment_id]"
+					objectStore="application_data" target="paymentData" />
+				<ee:transform doc:name="Add OTP and accountId to payment data"
+					doc:id="70400b71-76f9-4d8f-b226-e9e7987f6f7f">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="paymentData"><![CDATA[%dw 2.0
+output application/java
+---
+vars.paymentData ++ {
+	otp: 1000 + randomInt(8999),
+	accountId: vars.formData.account_id
+}]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<os:store doc:name="Update  paymentData with OTP" doc:id="79668565-56b3-4ff8-b25c-083669e567b9"
+					key="#[vars.paymentData.paymentId]" objectStore="application_data">
+					<os:value><![CDATA[#[vars.paymentData]]]></os:value>
+				</os:store>
+				<banking-authorization-server:get-user-info
+					doc:name="Get user info" doc:id="2b65536c-5465-4cdd-b3d5-1f5480086ea2"
+					target="userInfo" config-ref="Banking_Authorization_Server_Config"
+					authorization="#['Bearer ' ++ vars.accessToken]" />
+				<ee:transform doc:name="SMS request"
+					doc:id="4c4993c9-df92-443a-8c55-f4bf54afa5ee">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var paymentClaims = vars.paymentData.paymentClaims
+---
+{
+	"type": "SMS",
+	recipient: vars.userInfo.phone,
+	subject: "Payment $(paymentClaims.payment.amount.amount) $(paymentClaims.payment.amount.curr) to '$(paymentClaims.payment.receiver.name)' for '$(paymentClaims.payment.details.subject)'",
+	message: "Auth code: $(vars.paymentData.otp)",
+	priority: "MINOR"
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+					</ee:variables>
+				</ee:transform>
+				<banking-notifications-system-api:create-notification
+					doc:name="Send code to user via SMS" doc:id="d840fd78-70f2-4b77-83b6-a4fd73ac0f98"
+					config-ref="Banking_Notifications_System_API_config" target="responseNotification">
+				</banking-notifications-system-api:create-notification>
+				<set-payload value="#[payload]" doc:name="Set content-typee"
+					doc:id="d775c7d9-ade4-4257-b695-48e907325c3e" mimeType="text/html" />
+				<parse-template doc:name="Merge otp page"
+					doc:id="9c54258d-1f6b-4e4f-be5f-c27c95d00a36" location="html/otp.html" />
+			</when>
+			<otherwise>
+				<parse-template doc:name="Error page"
+					doc:id="dbcbffe2-4799-45ec-98af-119cd5859514" location="html/error.html" />
+				<ee:transform doc:name="408"
+					doc:id="e97666f4-d17b-4bcf-9f6d-35f2d4cf95b9">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[408]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="codeFlow" doc:id="6c3a4b44-23a1-481d-8667-28141bab41cb">
+		<ee:transform doc:name="Set formData and accessToken vars"
+			doc:id="1182e188-f7ad-4f6f-b2b9-c253cbfde60c">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="formData"><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+				<ee:set-variable variableName="accessToken"><![CDATA[%dw 2.0
+output application/java
+---
+payload.access_token]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="validateAccessToken" doc:id="8ea9ae24-3875-43ac-842b-baad997c99cd"
+			name="validateAccessToken" />
+		<os:contains doc:name="Contains payment?"
+			doc:id="88682ec0-f4e5-45e3-ae1f-8b3d551cd5c5" key="#[vars.formData.payment_id]"
+			objectStore="application_data" />
+		<choice doc:name="Known payment?" doc:id="f388ce67-868c-4e7c-8031-61eeedc6e7ab">
+			<when expression="#[payload == true]">
+				<os:retrieve doc:name="Retrieve to paymentData"
+					doc:id="0321103a-4014-4ce6-841c-02a6666ab094" key="#[vars.formData.payment_id]"
+					objectStore="application_data" target="paymentData" />
+				<choice doc:name="Is OTP valid?" doc:id="df91360d-f24d-4098-8e65-ca8dffa85b0d">
+					<when
+						expression="#[(vars.formData.otp as String) == (vars.paymentData.otp as String)]">
+						<os:remove doc:name="Invalidate payment data"
+							doc:id="619d0c0d-efa6-43d3-8771-d304b7518b27" key="#[vars.formData.payment_id]"
+							objectStore="application_data" />
+						<ee:transform doc:name="Prepare request for sAPI"
+							doc:id="0236b7f5-ff60-4b22-8313-b387a3ddcbc7">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var paymentInfo = vars.paymentData.paymentClaims.payment
+---
+{
+	amount: {
+		amount: paymentInfo.amount.amount,
+		currency: paymentInfo.amount.curr
+	},
+	description: paymentInfo.details.subject,
+	label: paymentInfo.receiver.name,
+	receiver_IBAN: paymentInfo.receiver.IBAN
+ }]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<banking-payment-process-api:create-transaction-by-id
+							doc:name="Create transaction" doc:id="42ad2e4c-398e-44ce-b17a-6ac248e028eb"
+							config-ref="Banking_Payment_Process_API_Config" id="#[vars.paymentData.accountId]" />
+						<ee:transform doc:name="JSON to Object"
+							doc:id="3eddb2f6-1149-48f2-a30f-8d062855f917">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<java:invoke-static doc:name="Sign the response"
+							doc:id="31a8d344-4dd3-4011-a5e5-601de275b88e" class="org.mule.templates.oauth2.SignPaymentUtils"
+							method="signPayment(String,String,String,String,String,String)">
+							<java:args><![CDATA[#[{arg0:p('pisp.expected_audience'), arg1:vars.paymentData.signingKey,arg2:vars.paymentData.paymentClaims.client_id,
+			arg3:payload.status,arg4:payload.transaction_id,arg5:vars.paymentData.paymentId}]]]></java:args>
+						</java:invoke-static>
+						<ee:transform doc:name="Redirect to merchant"
+							doc:id="a59ea0d7-b9c1-4260-b176-3afbeef131aa">
+							<ee:message>
+							</ee:message>
+							<ee:variables>
+								<ee:set-variable variableName="httpStatus"><![CDATA[302]]></ee:set-variable>
+								<ee:set-variable variableName="outboundHeaders"><![CDATA[%dw 2.0
+output application/java
+---
+{
+	location  : vars.paymentData.paymentClaims.redirect_uri ++ "?response=" ++ (payload as String) 
+}]]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+						<async doc:name="Async" doc:id="3cedde95-3d27-4f16-94b0-cc64d01f7570">
+							<banking-authorization-server:get-user-info
+								doc:name="Get user info" doc:id="10e3195b-6c23-4cd4-9539-2ba5e9eadaf7"
+								config-ref="Banking_Authorization_Server_Config" authorization="#['Bearer ' ++ vars.accessToken]"
+								target="userInfo" />
+							<ee:transform doc:name="Prepare confirmation SMS"
+								doc:id="bbd7b55b-811b-492f-b6c5-7195ea3d95dd">
+								<ee:message>
+									<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+var payment = vars.paymentData.paymentClaims.payment
+---
+{
+	"type"      : "SMS",
+	priority  : "MINOR",
+	recipient : vars.userInfo.phone,
+	subject   : "PISP transaction.",
+	message   : "$(payment.amount.amount) $(payment.amount.curr) to IBAN $(payment.receiver.IBAN). Anypoint Bank."
+	
+}]]></ee:set-payload>
+								</ee:message>
+							</ee:transform>
+							<banking-notifications-system-api:create-notification
+								doc:name="Payment successful SMS notification" doc:id="9025e529-dd60-410f-8bce-6c4be0c2518d"
+								config-ref="Banking_Notifications_System_API_config">
+							</banking-notifications-system-api:create-notification>
+						</async>
+					</when>
+					<otherwise>
+						<parse-template doc:name="Error page"
+							doc:id="996d8fbe-6173-4455-83da-dafb08e833e3" location="html/error.html" />
+						<ee:transform doc:name="422"
+							doc:id="753117fb-09f8-45ee-9fdf-bd87e161960b">
+							<ee:message>
+							</ee:message>
+							<ee:variables>
+								<ee:set-variable variableName="httpStatus"><![CDATA[422]]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+					</otherwise>
+				</choice>
+
+			</when>
+			<otherwise>
+				<parse-template doc:name="Error page"
+					doc:id="979b8939-423f-4c97-8438-fc2e2e02a75a" location="html/error.html" />
+				<ee:transform doc:name="408"
+					doc:id="ddcc1e53-eb8d-4f26-a0a8-b3d89b34f8b8">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[408]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+	</flow>
+</mule>

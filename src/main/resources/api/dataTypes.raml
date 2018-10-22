@@ -1,0 +1,127 @@
+#%RAML 1.0 Library
+
+uses: 
+  common: /exchange_modules/4d302cca-3f9a-4257-8ce4-20cf81a72e47/banking_common/1.0.1/banking_common.raml
+
+types:
+  Key:
+    type: object
+    properties:
+      paymentId: 
+        type: string
+        description: payment identifier 
+      signingKey: 
+        type: string
+        description: signing identifier
+      expiresInSeconds: 
+        type: number
+        description: expiration time in seconds
+  
+  ConfirmPayment:      
+    type: object
+    properties:
+        access_token:
+          type: string
+          description: |
+            Access token that proves user identity.
+        payment_id:
+          type: string
+          description: |
+            Payment ID is used as a key for the payment information. This should be populated by the previous flows.
+        account_id:
+          type: string
+          description: |
+            Account ID which should be used for payment.
+  Initiate:
+    properties:
+      iss: 
+        type: string
+        description: url issuer's 
+      aud?: 
+        type: string
+        description: url recipient
+      exp?: 
+        type: number
+        description: expiration in miliseconds
+      client_id?: 
+        type: string
+        description: client identifier
+      redirect_uri?: 
+        type: string
+        description: url redirect
+      scope?: 
+        type: string
+        description: requested scopes
+      iat?: 
+        type: string
+        description: issued at
+      claims?: 
+        type: object
+        properties:
+          payment: 
+            type: Payment
+            description: information about payment   
+  Code:
+    properties:
+      access_token:
+        type: string
+        description: |
+          Access token that proves user identity
+      payment_id:
+        type: string
+        description: |
+          Payment ID is used as a key for the payment information.
+      otp:
+        type: string
+        description: |
+          One Time Password entered in the form
+            
+  AdditionalInfo:
+    properties: 
+      subject:
+        type: string
+        description: transfer description 
+      booking_code:
+        type: string
+        description: transfer booking code
+      booking_date:
+        type: string
+        description: transfer booking date
+      value_date:
+        type: string
+        description: transfer value date
+
+  AccountInfo:
+    properties: 
+      account_number: 
+        type: string
+        description: account number
+      bank_id: 
+        type: string
+        description: bank identifier
+      bic: 
+        type: string
+        description: international bank identifier code
+      IBAN: 
+        type: string
+        description: international bank account number
+        pattern: ^[A-Z]{2,2}[0-9]{2,2}[a-zA-Z0-9]{1,30}$           
+      name: 
+        type: string
+        description: name of account
+  
+  Payment:
+    type: object
+    properties: 
+      type:
+        type: string
+        description: type of payment
+      to: 
+        type: AccountInfo
+        description: receiver account
+      value: 
+        type: common.Money
+        description: current medium of exchange
+      additional: 
+        type: AdditionalInfo
+        description: additional information about payment
