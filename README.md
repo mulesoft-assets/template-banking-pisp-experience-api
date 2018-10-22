@@ -91,48 +91,47 @@ Detailed list with examples:
 
 
 #HTTPS settings
-keystore.location `keystore.jks`
-keystore.password `keystore_password`
-key.password `key_password`
++ keystore.location `keystore.jks`
++ keystore.password `keystore_password`
++ key.password `key_password`
 
 ##PISP API configuration (protocol://host:port/basePath)
-pisp.baseUrl `https://pisp-exp-api.example.com:443/api`
-pisp.client_id `client_id`
-pisp.expected_audience `https://pisp-exp-api.example.com`
-pisp.redirect_uri `https://${pisp.baseUrl}/consent`
-pisp.confirmation_url `${pisp.baseUrl}/confirmPayment`
-pisp.otp_url `${pisp.baseUrl}/code`
++ pisp.baseUrl `https://pisp-exp-api.example.com:443/api`
++ pisp.client_id `client_id`
++ pisp.expected_audience `https://pisp-exp-api.example.com`
++ pisp.redirect_uri `https://${pisp.baseUrl}/consent`
++ pisp.confirmation_url `${pisp.baseUrl}/confirmPayment`
++ pisp.otp_url `${pisp.baseUrl}/code`
 
 #Notifications System API
-api.banking.notification.host `api.notification.example.com`
-api.banking.notification.port `80`
-api.banking.notification.basePath `/api`
-api.banking.notification.protocol `HTTP`
++ api.banking.notification.host `api.notification.example.com`
++ api.banking.notification.port `80`
++ api.banking.notification.basePath `/api`
++ api.banking.notification.protocol `HTTP`
 
 #Accounts Process API
-api.banking.accounts.host `api.accounts.example.com`
-api.banking.accounts.port `80`
-api.banking.accounts.basePath `/api`
-api.banking.accounts.protocol `HTTP`
++ api.banking.accounts.host `api.accounts.example.com`
++ api.banking.accounts.port `80`
++ api.banking.accounts.basePath `/api`
++ api.banking.accounts.protocol `HTTP`
 
 #Payments Process API
-api.banking.payment.host `api.payment.example.com`
-api.banking.payment.port `80`
-api.banking.payment.basePath `/api`
-api.banking.payment.protocol `HTTP`
++ api.banking.payment.host `api.payment.example.com`
++ api.banking.payment.port `80`
++ api.banking.payment.basePath `/api`
++ api.banking.payment.protocol `HTTP`
 
 #Authorization server details 
-api.banking.auth.host `api.auth.example.com`
-api.banking.auth.port `80`
-api.banking.auth.basePath `/api`
-api.banking.auth.protocol `HTTP`
++ api.banking.auth.host `api.auth.example.com`
++ api.banking.auth.port `80`
++ api.banking.auth.basePath `/api`
++ api.banking.auth.protocol `HTTP`
 
 #RSA key pair in JWK format
-jwt.signing.key.path `jwk-pair.jwk`
++ jwt.signing.key.path `jwk-pair.jwk`
 
 #AES key in JWK format
-jwt.resource.path `path/resourse`
-jwt.encryption.key.path `shared-key.jwk`
-jwt.issuer `https://auth.example.com`
-jwt.audience `https://auth.exampleaudience.com`
-
++ jwt.resource.path `path/resourse`
++ jwt.encryption.key.path `shared-key.jwk`
++ jwt.issuer `https://auth.example.com`
++ jwt.audience `https://auth.exampleaudience.com`
