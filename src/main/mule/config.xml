@@ -64,4 +64,8 @@ http://www.mulesoft.org/schema/mule/banking-payment-process-api http://www.mules
 		doc:id="bca1ac6a-5eb2-4c12-a92e-b806916e1a32" property_host="${api.banking.payment.host}"
 		property_port="${api.banking.payment.port}" property_basePath="${api.banking.payment.basePath}"
 		property_protocol="${api.banking.payment.protocol}" />
+		<global-property doc:name="Global Property" name="mule.env"
+		value="dev" />
+		<api-gateway:autodiscovery apiId="${api.id}" doc:name="API Autodiscovery" doc:id="42c4ae4b-9b6a-4ebc-8e5d-a31e77f77338" flowRef="banking_pisp_experience_api-main" />
+		
 </mule>

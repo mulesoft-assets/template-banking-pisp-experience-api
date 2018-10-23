@@ -89,6 +89,12 @@ Detailed list with examples:
 ### Application properties
 + https.port `8082`
 
+#API auto-discovery
++ api.id `123`
+
+#API Platform Organization
++ anypoint.platform.client_id `cloudhub_client_id`
++ anypoint.platform.client_secret `cloudhub_client_secret`
 
 #HTTPS settings
 + keystore.location `keystore.jks`
