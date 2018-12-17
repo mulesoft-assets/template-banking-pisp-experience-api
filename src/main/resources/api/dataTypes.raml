@@ -1,7 +1,7 @@
 #%RAML 1.0 Library
 
 uses: 
-  common: /exchange_modules/4d302cca-3f9a-4257-8ce4-20cf81a72e47/banking_common/1.0.1/banking_common.raml
+  common: exchange_modules/org.mule.templates/banking-common/1.0.1/banking_common.raml
 
 types:
   Key:
@@ -9,13 +9,16 @@ types:
     properties:
       paymentId: 
         type: string
-        description: payment identifier 
+        description: |
+          Payment identifier 
       signingKey: 
         type: string
-        description: signing identifier
+        description: |
+          Signing identifier
       expiresInSeconds: 
         type: number
-        description: expiration time in seconds
+        description: |
+          Expiration time in seconds
   
   ConfirmPayment:      
     type: object
@@ -36,31 +39,39 @@ types:
     properties:
       iss: 
         type: string
-        description: url issuer's 
+        description: |
+          Url issuer's 
       aud?: 
         type: string
-        description: url recipient
+        description: |
+          Url recipient
       exp?: 
         type: number
-        description: expiration in miliseconds
+        description: |
+          Expiration in miliseconds
       client_id?: 
         type: string
-        description: client identifier
+        description: |
+          Client identifier
       redirect_uri?: 
         type: string
-        description: url redirect
+        description: |
+          Url redirect
       scope?: 
         type: string
-        description: requested scopes
+        description: |
+          Requested scopes
       iat?: 
         type: string
-        description: issued at
+        description: |
+          Issued at
       claims?: 
         type: object
         properties:
           payment: 
             type: Payment
-            description: information about payment   
+            description: |
+              Information about payment   
   Code:
     properties:
       access_token:
@@ -80,48 +91,61 @@ types:
     properties: 
       subject:
         type: string
-        description: transfer description 
+        description: |
+          Transfer description 
       booking_code:
         type: string
-        description: transfer booking code
+        description: |
+          Transfer booking code
       booking_date:
         type: string
-        description: transfer booking date
+        description: |
+          Transfer booking date
       value_date:
         type: string
-        description: transfer value date
+        description: |
+          Transfer value date
 
   AccountInfo:
     properties: 
       account_number: 
         type: string
-        description: account number
+        description: |
+          Account number
       bank_id: 
         type: string
-        description: bank identifier
+        description: |
+          Bank identifier
       bic: 
         type: string
-        description: international bank identifier code
+        description: |
+          International bank identifier code
       IBAN: 
         type: string
-        description: international bank account number
+        description: |
+          International bank account number
         pattern: ^[A-Z]{2,2}[0-9]{2,2}[a-zA-Z0-9]{1,30}$           
       name: 
         type: string
-        description: name of account
+        description: |
+          Name of account
   
   Payment:
     type: object
     properties: 
       type:
         type: string
-        description: type of payment
+        description: |
+          Type of payment
       to: 
         type: AccountInfo
-        description: receiver account
+        description: |
+          Receiver account
       value: 
         type: common.Money
-        description: current medium of exchange
+        description: |
+          Current medium of exchange
       additional: 
         type: AdditionalInfo
-        description: additional information about payment
+        description: |
+          Additional information about payment
