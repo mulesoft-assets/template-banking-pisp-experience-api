@@ -1,15 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:banking-payment-process-api="http://www.mulesoft.org/schema/mule/banking-payment-process-api"
-	xmlns:banking-notifications-system-api="http://www.mulesoft.org/schema/mule/banking-notifications-system-api"
-	xmlns:banking-authorization-server="http://www.mulesoft.org/schema/mule/banking-authorization-server"
-	xmlns:banking-accounts-process-api="http://www.mulesoft.org/schema/mule/banking-accounts-process-api"
-	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
-	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:java="http://www.mulesoft.org/schema/mule/java"
+<mule 
+	xmlns:banking-payment-process-api="http://www.mulesoft.org/schema/mule/banking-payment-process-api" xmlns:retail-notifications-system-api="http://www.mulesoft.org/schema/mule/retail-notifications-system-api"
+	xmlns:banking-authorization-server="http://www.mulesoft.org/schema/mule/banking-authorization-server" xmlns:banking-accounts-process-api="http://www.mulesoft.org/schema/mule/banking-accounts-process-api"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java"
 	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core"
-	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
 http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
@@ -17,8 +13,8 @@ http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/fil
 http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
 http://www.mulesoft.org/schema/mule/banking-accounts-process-api http://www.mulesoft.org/schema/mule/banking-accounts-process-api/current/mule-banking-accounts-process-api.xsd
 http://www.mulesoft.org/schema/mule/banking-authorization-server http://www.mulesoft.org/schema/mule/banking-authorization-server/current/mule-banking-authorization-server.xsd
-http://www.mulesoft.org/schema/mule/banking-notifications-system-api http://www.mulesoft.org/schema/mule/banking-notifications-system-api/current/mule-banking-notifications-system-api.xsd
-http://www.mulesoft.org/schema/mule/banking-payment-process-api http://www.mulesoft.org/schema/mule/banking-payment-process-api/current/mule-banking-payment-process-api.xsd">
+http://www.mulesoft.org/schema/mule/banking-payment-process-api http://www.mulesoft.org/schema/mule/banking-payment-process-api/current/mule-banking-payment-process-api.xsd
+http://www.mulesoft.org/schema/mule/retail-notifications-system-api http://www.mulesoft.org/schema/mule/retail-notifications-system-api/current/mule-retail-notifications-system-api.xsd">
 
 	<flow name="keyFlow" doc:id="e70ac96a-c173-41d1-bd47-597468924f1f">
 		<set-variable value="#[uuid()]" doc:name="Set paymentId"
@@ -201,7 +197,6 @@ attributes.headers.authorization[7 to sizeOf(attributes.headers.authorization) -
 						<banking-accounts-process-api:aggregate-user-accounts
 							doc:name="Get aggregated accounts" doc:id="e9afaac0-805b-4a9d-9a51-289da797bcd0"
 							config-ref="Banking_Accounts_Process_API_Config" ssn="#[vars.accessTokenClaims.ssn]" />
-
 						<ee:transform doc:name="Filter response"
 							doc:id="5111667d-6fb2-4407-82ff-3b3442c958ab">
 							<ee:message>
@@ -315,7 +310,7 @@ vars.paymentData ++ {
 					key="#[vars.paymentData.paymentId]" objectStore="application_data">
 					<os:value><![CDATA[#[vars.paymentData]]]></os:value>
 				</os:store>
-				<banking-authorization-server:get-user-info
+				<banking-authorization-server:retrieve-user-info
 					doc:name="Get user info" doc:id="2b65536c-5465-4cdd-b3d5-1f5480086ea2"
 					target="userInfo" config-ref="Banking_Authorization_Server_Config"
 					authorization="#['Bearer ' ++ vars.accessToken]" />
@@ -337,10 +332,10 @@ var paymentClaims = vars.paymentData.paymentClaims
 					<ee:variables>
 					</ee:variables>
 				</ee:transform>
-				<banking-notifications-system-api:create-notification
+				<retail-notifications-system-api:create-new-notification
 					doc:name="Send code to user via SMS" doc:id="d840fd78-70f2-4b77-83b6-a4fd73ac0f98"
-					config-ref="Banking_Notifications_System_API_config" target="responseNotification">
-				</banking-notifications-system-api:create-notification>
+					config-ref="Retail_Notifications_System_API_Config" target="responseNotification">
+				</retail-notifications-system-api:create-new-notification>
 				<set-payload value="#[payload]" doc:name="Set content-typee"
 					doc:id="d775c7d9-ade4-4257-b695-48e907325c3e" mimeType="text/html" />
 				<parse-template doc:name="Merge otp page"
@@ -410,7 +405,7 @@ var paymentInfo = vars.paymentData.paymentClaims.payment
  }]]></ee:set-payload>
 							</ee:message>
 						</ee:transform>
-						<banking-payment-process-api:create-transaction-by-id
+						<banking-payment-process-api:create-payment
 							doc:name="Create transaction" doc:id="42ad2e4c-398e-44ce-b17a-6ac248e028eb"
 							config-ref="Banking_Payment_Process_API_Config" id="#[vars.paymentData.accountId]" />
 						<ee:transform doc:name="JSON to Object"
@@ -443,7 +438,7 @@ output application/java
 							</ee:variables>
 						</ee:transform>
 						<async doc:name="Async" doc:id="3cedde95-3d27-4f16-94b0-cc64d01f7570">
-							<banking-authorization-server:get-user-info
+							<banking-authorization-server:retrieve-user-info
 								doc:name="Get user info" doc:id="10e3195b-6c23-4cd4-9539-2ba5e9eadaf7"
 								config-ref="Banking_Authorization_Server_Config" authorization="#['Bearer ' ++ vars.accessToken]"
 								target="userInfo" />
@@ -464,10 +459,7 @@ var payment = vars.paymentData.paymentClaims.payment
 }]]></ee:set-payload>
 								</ee:message>
 							</ee:transform>
-							<banking-notifications-system-api:create-notification
-								doc:name="Payment successful SMS notification" doc:id="9025e529-dd60-410f-8bce-6c4be0c2518d"
-								config-ref="Banking_Notifications_System_API_config">
-							</banking-notifications-system-api:create-notification>
+							<retail-notifications-system-api:create-new-notification config-ref="Retail_Notifications_System_API_Config" doc:id="71f9dca9-650a-4459-8cb7-c4dacd5d8857" doc:name="Payment successful SMS notification"/>
 						</async>
 					</when>
 					<otherwise>

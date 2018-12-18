@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:banking-payment-process-api="http://www.mulesoft.org/schema/mule/banking-payment-process-api"
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:retail-notifications-system-api="http://www.mulesoft.org/schema/mule/retail-notifications-system-api"
+	xmlns:banking-payment-process-api="http://www.mulesoft.org/schema/mule/banking-payment-process-api"
 	xmlns:banking-notifications-system-api="http://www.mulesoft.org/schema/mule/banking-notifications-system-api"
 	xmlns:banking-authorization-server="http://www.mulesoft.org/schema/mule/banking-authorization-server"
-	xmlns:banking-accounts-process-api="http://www.mulesoft.org/schema/mule/banking-accounts-process-api"
-	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:banking-accounts-process-api="http://www.mulesoft.org/schema/mule/banking-accounts-process-api" xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
 	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:java="http://www.mulesoft.org/schema/mule/java"
 	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core"
-	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
-	xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
 http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
@@ -20,7 +20,12 @@ http://www.mulesoft.org/schema/mule/banking-accounts-process-api http://www.mule
 http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd 
 http://www.mulesoft.org/schema/mule/banking-authorization-server http://www.mulesoft.org/schema/mule/banking-authorization-server/current/mule-banking-authorization-server.xsd
 http://www.mulesoft.org/schema/mule/banking-notifications-system-api http://www.mulesoft.org/schema/mule/banking-notifications-system-api/current/mule-banking-notifications-system-api.xsd
-http://www.mulesoft.org/schema/mule/banking-payment-process-api http://www.mulesoft.org/schema/mule/banking-payment-process-api/current/mule-banking-payment-process-api.xsd">
+http://www.mulesoft.org/schema/mule/banking-payment-process-api http://www.mulesoft.org/schema/mule/banking-payment-process-api/current/mule-banking-payment-process-api.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/retail-notifications-system-api http://www.mulesoft.org/schema/mule/retail-notifications-system-api/current/mule-retail-notifications-system-api.xsd">
+	
+	<global-property doc:name="Global Property" name="mule.env"
+		value="dev" />
 	<http:listener-config name="banking_pisp_experience_api-httpListenerConfig">
 		<http:listener-connection host="0.0.0.0" port="${https.port}" protocol="HTTPS" tlsContext="TLS_Context" />
 	</http:listener-config>
@@ -54,18 +59,16 @@ http://www.mulesoft.org/schema/mule/banking-payment-process-api http://www.mules
 		doc:id="d4b2b51e-a67c-419c-9f4d-0f99d8d3993c" property_host="${api.banking.auth.host}"
 		property_port="${api.banking.auth.port}" property_basePath="${api.banking.auth.basePath}"
 		property_protocol="${api.banking.auth.protocol}" />
-	<banking-notifications-system-api:config
-		name="Banking_Notifications_System_API_config" doc:name="Banking_Notifications_System_API Config"
-		doc:id="ab0f8998-2649-42c9-84c9-279d2c0768f1" property_host="${api.banking.notification.host}"
-		property_port="${api.banking.notification.port}" property_basePath="${api.banking.notification.basePath}"
-		property_protocol="${api.banking.notification.protocol}" />
 	<banking-payment-process-api:config
 		name="Banking_Payment_Process_API_Config" doc:name="Banking_Payment_Process_API Config"
 		doc:id="bca1ac6a-5eb2-4c12-a92e-b806916e1a32" property_host="${api.banking.payment.host}"
 		property_port="${api.banking.payment.port}" property_basePath="${api.banking.payment.basePath}"
 		property_protocol="${api.banking.payment.protocol}" />
-		<global-property doc:name="Global Property" name="mule.env"
-		value="dev" />
-		<api-gateway:autodiscovery apiId="${api.id}" doc:name="API Autodiscovery" doc:id="42c4ae4b-9b6a-4ebc-8e5d-a31e77f77338" flowRef="banking_pisp_experience_api-main" />
+	<retail-notifications-system-api:config name="Retail_Notifications_System_API_Config" doc:name="Retail Notifications System API Config" 
+		doc:id="e5f99e18-da16-4bf2-8f2c-7cc1235892c5" property_host="${api.banking.notification.host}" 
+		property_port="${api.banking.notification.port}" property_basePath="${api.banking.notification.basePath}" 
+		property_protocol="${api.banking.notification.protocol}"/>
 		
+	<api-gateway:autodiscovery apiId="${api.id}" doc:name="API Autodiscovery" doc:id="a92736b3-bb37-426c-be92-8780dd36b3f7" flowRef="banking_pisp_experience_api-main" />
+
 </mule>

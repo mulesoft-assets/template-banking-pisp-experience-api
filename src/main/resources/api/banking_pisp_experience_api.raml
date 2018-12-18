@@ -1,25 +1,24 @@
 #%RAML 1.0
 title: Banking_PISP_Experience_API
 version: v2
-baseUri: https://localhost:8082/api/payment
+baseUri: https://localhost:8082/api
 mediaType: application/json
 protocols: [HTTPS]
 
 uses: 
-  common: /exchange_modules/4d302cca-3f9a-4257-8ce4-20cf81a72e47/banking_common/1.0.1/banking_common.raml
-  pisp: ./dataTypes.raml
+  common: exchange_modules/org.mule.templates/banking-common/1.0.1/banking_common.raml
+  pisp: dataTypes.raml
 
-#securitySchemes: 
-#  basic:
-#    description: |
-#      This API supports Basic Authentication.
-#    type: Basic Authentication
+securitySchemes: 
+  oAuth_2_0: !include securityScheme.raml
 
+# Securing the API with Basic Authorization and OAuth 2.0
+securedBy: [oAuth_2_0]
 
 
 /key:
   get:
-   # securedBy: basic
+    displayName: Retrieve payment identifier
     queryParameters:
       client_id?:
         type: string
@@ -42,8 +41,8 @@ uses:
     The payee information is provided to the API as a JWT token with the set of payment claims. The JWT token (https://jwt.io/introduction/) is signed with the client secret of the registered app to ensure that it is not tampered with.
     This endpoint redirects to the configured authorization server where user is authenticated.
   get:
+    displayName: Initiate payment
     queryParameters:
-
       paymentId:
         type: string
         description: ID generated in the first step (/key endpoint) to link payment token to the one time signing key.  
@@ -97,6 +96,7 @@ uses:
  
 /consent:
   get:
+    displayName: Retrieve information about payment
     description: |
       User is shown the list of his/her accounts and information about payment. User can confirm or deny the payment.
     queryParameters: 
@@ -116,6 +116,7 @@ uses:
 
 /confirmPayment:
   post:
+    displayName: Confirm payment
     description: |
       User is shown the list of his/her accounts and information about payment. User can confirm or deny the payment.
       This endpoint is supposed to be set as the form action parameter in the consent page.    
@@ -132,6 +133,7 @@ uses:
 
 /code: 
   post: 
+    displayName: Send code
     description: |
       User is asked to enter the code received on his/her mobile phone to complete two factor authentication and confirm the payment.
       This endpoint is supposed to be set as the form action parameter in the confirmation page.
