@@ -32,7 +32,7 @@ securedBy: [oAuth_2_0]
         body:
           application/json:
             type: pisp.Key
-            example: !include examples/key-response.raml
+            example: !include examples/key-response.json
           
 
 /initiate:
@@ -123,7 +123,7 @@ securedBy: [oAuth_2_0]
     body:
       application/x-www-form-urlencoded:
         type: pisp.ConfirmPayment
-        example: !include examples/confirmPayment-request.raml
+        example: !include examples/confirmPayment-request.json
       
     responses:
       200: 
@@ -141,7 +141,7 @@ securedBy: [oAuth_2_0]
     body:
       application/x-www-form-urlencoded: 
         type: pisp.Code
-        example: !include examples/code-request.raml
+        example: !include examples/code-request.json
               
     responses:
       302:
